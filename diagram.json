@@ -1,0 +1,348 @@
+{
+  "version": 1,
+  "author": "Gatul",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-nano", "id": "nano", "top": 196.8, "left": 76.3, "attrs": {} },
+    { "type": "chip-pcf8574", "id": "chip0", "top": 50, "left": 0, "attrs": {} },
+    {
+      "type": "wokwi-led",
+      "id": "led00",
+      "top": 10,
+      "left": 100,
+      "attrs": { "color": "blue", "label": "P0" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led01",
+      "top": 10,
+      "left": 120,
+      "attrs": { "color": "blue", "label": "P1" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led02",
+      "top": 10,
+      "left": 140,
+      "attrs": { "color": "blue", "label": "P2" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led03",
+      "top": 10,
+      "left": 160,
+      "attrs": { "color": "blue", "label": "P3" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led04",
+      "top": 10,
+      "left": 180,
+      "attrs": { "color": "blue", "label": "P4" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led05",
+      "top": 10,
+      "left": 200,
+      "attrs": { "color": "blue", "label": "P5" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led06",
+      "top": 10,
+      "left": 220,
+      "attrs": { "color": "blue", "label": "P6" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led07",
+      "top": 10,
+      "left": 240,
+      "attrs": { "color": "blue", "label": "P7" }
+    },
+    {
+      "type": "wokwi-ky-040",
+      "id": "encoder1",
+      "top": -16.2,
+      "left": -113.9,
+      "rotate": 90,
+      "attrs": {}
+    },
+    { "type": "chip-pcf8574", "id": "chip1", "top": -80, "left": 0, "attrs": {} },
+    {
+      "type": "wokwi-led",
+      "id": "led10",
+      "top": -110,
+      "left": 100,
+      "attrs": { "color": "blue", "label": "P0" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led11",
+      "top": -110,
+      "left": 120,
+      "attrs": { "color": "blue", "label": "P1" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led12",
+      "top": -110,
+      "left": 140,
+      "attrs": { "color": "blue", "label": "P2" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led13",
+      "top": -110,
+      "left": 160,
+      "attrs": { "color": "blue", "label": "P3" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led14",
+      "top": -110,
+      "left": 180,
+      "attrs": { "color": "blue", "label": "P4" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led15",
+      "top": -110,
+      "left": 200,
+      "attrs": { "color": "blue", "label": "P5" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led16",
+      "top": -110,
+      "left": 220,
+      "attrs": { "color": "blue", "label": "P6" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led17",
+      "top": -110,
+      "left": 240,
+      "attrs": { "color": "blue", "label": "P7" }
+    },
+    { "type": "chip-pcf8574", "id": "chip2", "top": -210, "left": 0, "attrs": {} },
+    {
+      "type": "wokwi-led",
+      "id": "led20",
+      "top": -240,
+      "left": 100,
+      "attrs": { "color": "blue", "label": "P0" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led21",
+      "top": -240,
+      "left": 120,
+      "attrs": { "color": "blue", "label": "P1" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led22",
+      "top": -240,
+      "left": 140,
+      "attrs": { "color": "blue", "label": "P2" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led23",
+      "top": -240,
+      "left": 160,
+      "attrs": { "color": "blue", "label": "P3" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led24",
+      "top": -240,
+      "left": 180,
+      "attrs": { "color": "blue", "label": "P4" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led25",
+      "top": -240,
+      "left": 200,
+      "attrs": { "color": "blue", "label": "P5" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led26",
+      "top": -240,
+      "left": 220,
+      "attrs": { "color": "blue", "label": "P6" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led27",
+      "top": -240,
+      "left": 240,
+      "attrs": { "color": "blue", "label": "P7" }
+    },
+    { "type": "chip-pcf8574", "id": "chip3", "top": -340, "left": 0, "attrs": {} },
+    {
+      "type": "wokwi-led",
+      "id": "led30",
+      "top": -370,
+      "left": 100,
+      "attrs": { "color": "blue", "label": "P0" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led31",
+      "top": -370,
+      "left": 120,
+      "attrs": { "color": "blue", "label": "P1" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led32",
+      "top": -370,
+      "left": 140,
+      "attrs": { "color": "blue", "label": "P2" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led33",
+      "top": -370,
+      "left": 160,
+      "attrs": { "color": "blue", "label": "P3" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led34",
+      "top": -370,
+      "left": 180,
+      "attrs": { "color": "blue", "label": "P4" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led35",
+      "top": -370,
+      "left": 200,
+      "attrs": { "color": "blue", "label": "P5" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led36",
+      "top": -370,
+      "left": 220,
+      "attrs": { "color": "blue", "label": "P6" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led37",
+      "top": -370,
+      "left": 240,
+      "attrs": { "color": "blue", "label": "P7" }
+    },
+    {
+      "type": "wokwi-ky-040",
+      "id": "encoder2",
+      "top": 51,
+      "left": 270.1,
+      "rotate": 90,
+      "attrs": {}
+    }
+  ],
+  "connections": [
+    [ "chip0:VCC", "nano:5V", "red", [ "h-4.8", "v152.62", "h201.6" ] ],
+    [ "chip0:SDA", "nano:A4", "cyan", [ "h-14.4", "v239.02", "h172.8" ] ],
+    [ "chip0:SCL", "nano:A5", "white", [ "h-24", "v239.02", "h192" ] ],
+    [ "chip0:GND", "nano:GND.1", "black", [ "h4.8", "v133.42", "h211.2" ] ],
+    [ "encoder1:CLK", "nano:3", "magenta", [ "v96", "h249.6" ] ],
+    [ "encoder1:DT", "nano:2", "yellow", [ "v105.6", "h268.7" ] ],
+    [ "chip0:P0", "led00:A", "#8f4814", [ "h0" ] ],
+    [ "chip0:P1", "led01:A", "purple", [ "h0" ] ],
+    [ "chip0:P2", "led02:A", "orange", [ "h0" ] ],
+    [ "chip0:P3", "led03:A", "gold", [ "h0" ] ],
+    [ "chip0:P4", "led04:A", "green", [ "h0" ] ],
+    [ "chip0:P5", "led05:A", "blue", [ "h0" ] ],
+    [ "chip0:P6", "led06:A", "violet", [ "h0" ] ],
+    [ "chip0:P7", "led07:A", "gray", [ "v-0.98", "h236.41" ] ],
+    [ "led00:C", "led01:C", "black", [ "v12.8", "h30" ] ],
+    [ "led01:C", "led02:C", "black", [ "v12.8", "h30" ] ],
+    [ "led02:C", "led03:C", "black", [ "v12.8", "h30" ] ],
+    [ "led03:C", "led04:C", "black", [ "v12.8", "h30" ] ],
+    [ "led04:C", "led05:C", "black", [ "v12.8", "h30" ] ],
+    [ "led05:C", "led06:C", "black", [ "v12.8", "h30" ] ],
+    [ "led06:C", "led07:C", "black", [ "v12.8", "h30" ] ],
+    [ "led07:C", "nano:GND.2", "black", [ "v15.2", "h33", "v115.2", "h-86.4" ] ],
+    [ "encoder1:GND", "nano:GND.1", "black", [ "v201.6", "h325.6" ] ],
+    [ "encoder1:VCC", "nano:5V", "red", [ "v211.2", "h297.2" ] ],
+    [ "chip1:P0", "led10:A", "#8f4814", [ "h0" ] ],
+    [ "chip1:P1", "led11:A", "purple", [ "h0" ] ],
+    [ "chip1:P2", "led12:A", "orange", [ "h0" ] ],
+    [ "chip1:P3", "led13:A", "gold", [ "h0" ] ],
+    [ "chip1:P4", "led14:A", "green", [ "h0" ] ],
+    [ "chip1:P5", "led15:A", "blue", [ "h0" ] ],
+    [ "chip1:P6", "led16:A", "violet", [ "h0" ] ],
+    [ "chip1:P7", "led17:A", "gray", [ "v-0.98", "h236.41" ] ],
+    [ "led10:C", "led11:C", "black", [ "v12.8", "h30" ] ],
+    [ "led11:C", "led12:C", "black", [ "v12.8", "h30" ] ],
+    [ "led12:C", "led13:C", "black", [ "v12.8", "h30" ] ],
+    [ "led13:C", "led14:C", "black", [ "v12.8", "h30" ] ],
+    [ "led14:C", "led15:C", "black", [ "v12.8", "h30" ] ],
+    [ "led15:C", "led16:C", "black", [ "v12.8", "h30" ] ],
+    [ "led16:C", "led17:C", "black", [ "v12.8", "h30" ] ],
+    [ "led17:C", "nano:GND.2", "black", [ "v10.4", "h33", "v240", "h-86.4" ] ],
+    [ "chip1:SDA", "chip0:SDA", "cyan", [ "h-14.4", "v130" ] ],
+    [ "chip1:SCL", "chip0:SCL", "white", [ "h-24", "v130" ] ],
+    [ "chip1:VCC", "chip0:VCC", "red", [ "h-4.8", "v130" ] ],
+    [ "chip1:GND", "chip0:GND", "black", [ "h4.8", "v130" ] ],
+    [ "chip2:P0", "led20:A", "#8f4814", [ "h0" ] ],
+    [ "chip2:P1", "led21:A", "purple", [ "h0" ] ],
+    [ "chip2:P2", "led22:A", "orange", [ "h0" ] ],
+    [ "chip2:P3", "led23:A", "gold", [ "h0" ] ],
+    [ "chip2:P4", "led24:A", "green", [ "h0" ] ],
+    [ "chip2:P5", "led25:A", "blue", [ "h0" ] ],
+    [ "chip2:P6", "led26:A", "violet", [ "h0" ] ],
+    [ "chip2:P7", "led27:A", "gray", [ "v-0.98", "h236.41" ] ],
+    [ "led20:C", "led21:C", "black", [ "v12.8", "h30" ] ],
+    [ "led21:C", "led22:C", "black", [ "v12.8", "h30" ] ],
+    [ "led22:C", "led23:C", "black", [ "v12.8", "h30" ] ],
+    [ "led23:C", "led24:C", "black", [ "v12.8", "h30" ] ],
+    [ "led24:C", "led25:C", "black", [ "v12.8", "h30" ] ],
+    [ "led25:C", "led26:C", "black", [ "v12.8", "h30" ] ],
+    [ "led26:C", "led27:C", "black", [ "v12.8", "h30" ] ],
+    [ "led27:C", "nano:GND.2", "black", [ "v10.4", "h33", "v370", "h-86.4" ] ],
+    [ "chip2:SDA", "chip1:SDA", "cyan", [ "h-14.4", "v130" ] ],
+    [ "chip2:SCL", "chip1:SCL", "white", [ "h-24", "v130" ] ],
+    [ "chip2:A1", "chip1:GND", "black", [ "h4.8", "v168.4" ] ],
+    [ "chip2:VCC", "chip1:VCC", "red", [ "h-4.8", "v130" ] ],
+    [ "chip2:GND", "chip1:GND", "black", [ "h4.8", "v130" ] ],
+    [ "chip3:P0", "led30:A", "#8f4814", [ "h0" ] ],
+    [ "chip3:P1", "led31:A", "purple", [ "h0" ] ],
+    [ "chip3:P2", "led32:A", "orange", [ "h0" ] ],
+    [ "chip3:P3", "led33:A", "gold", [ "h0" ] ],
+    [ "chip3:P4", "led34:A", "green", [ "h0" ] ],
+    [ "chip3:P5", "led35:A", "blue", [ "h0" ] ],
+    [ "chip3:P6", "led36:A", "violet", [ "h0" ] ],
+    [ "chip3:P7", "led37:A", "gray", [ "v-0.98", "h236.41" ] ],
+    [ "led30:C", "led31:C", "black", [ "v12.8", "h30" ] ],
+    [ "led31:C", "led32:C", "black", [ "v12.8", "h30" ] ],
+    [ "led32:C", "led33:C", "black", [ "v12.8", "h30" ] ],
+    [ "led33:C", "led34:C", "black", [ "v12.8", "h30" ] ],
+    [ "led34:C", "led35:C", "black", [ "v12.8", "h30" ] ],
+    [ "led35:C", "led36:C", "black", [ "v12.8", "h30" ] ],
+    [ "led36:C", "led37:C", "black", [ "v12.8", "h30" ] ],
+    [ "led37:C", "nano:GND.2", "black", [ "v10.4", "h33", "v500", "h-86.4" ] ],
+    [ "chip3:SDA", "chip2:SDA", "cyan", [ "h-14.4", "v130" ] ],
+    [ "chip3:SCL", "chip2:SCL", "white", [ "h-24", "v130" ] ],
+    [ "chip3:A2", "chip2:GND", "black", [ "h4.8", "v178" ] ],
+    [ "chip3:VCC", "chip2:VCC", "red", [ "h-4.8", "v130" ] ],
+    [ "chip3:GND", "chip2:GND", "black", [ "h4.8", "v130" ] ],
+    [ "encoder2:GND", "nano:GND.2", "black", [ "h-0.8", "v38.4", "h-115.2" ] ],
+    [ "encoder2:VCC", "nano:5V", "red", [ "v144", "h-125.2" ] ],
+    [ "chip3:A1", "chip2:GND", "black", [ "h4.8", "v168.4" ] ],
+    [ "chip0:A2", "chip0:GND", "black", [ "h14.4", "v28.8" ] ],
+    [ "encoder2:SW", "nano:6", "green", [ "v9.6", "h-182.5" ] ],
+    [ "encoder2:CLK", "nano:5", "magenta", [ "v19.2", "h-192" ] ],
+    [ "encoder2:DT", "nano:4", "yellow", [ "v28.8", "h-172.9" ] ]
+  ],
+  "dependencies": {}
+}

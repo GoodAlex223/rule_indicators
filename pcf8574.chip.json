@@ -1,0 +1,27 @@
+{
+  "id": "wokwi-custom-chip",
+  "name": "PCF8574A",
+  "author": "Gatul",
+  "pins": [
+    "SDA",
+    "SCL",
+    "INT",
+    "",
+    "A0",
+    "A1",
+    "A2",
+    "",
+    "VCC",
+    "GND",
+
+    "",
+    "P7",
+    "P6",
+    "P5",
+    "P4",
+    "P3",
+    "P2",
+    "P1",
+    "P0"
+  ]
+}
