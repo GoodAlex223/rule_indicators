@@ -5,6 +5,8 @@
 #include <PCF8574.h>
 #include <PinChangeInterrupt.h>
 #include <RTClib.h>
+#include "AT24CX.h"
+// Replace "AT24CX.h" with <AT24CX.h>(add as library)
 
 #define pinA_enc1 3
 #define pinB_enc1 2
@@ -12,6 +14,11 @@
 #define pinA_enc2 5
 #define pinB_enc2 4
 #define pinReset_enc2 6
+
+#define modeButton 7
+
+#define distanceInd 8
+#define timeInd 9
 
 // Global values
 const int8_t STEP = 1;
@@ -88,6 +95,8 @@ PCF8574 PCF3(0x3B); // bin: 0b00111011
 // PCF8574 PCF3(0xBB);
 
 RTC_DS1307 RTC;
+
+AT24C32 EepromRTC(0x50);
 
 
 void safeDistanceIncrease(int32_t increaseStep){
@@ -311,14 +320,13 @@ void setupPcfs() {
   if (workTime != 0){
     // write value to memory
     // Case when both battery is low and power off
-    // Write to memory workTime
-    // TODO: write to memory workTime value. !!!! Change workTime to 0 before next start
+    // Write to memory workTime value. !!!! Change workTime to 0 before next start
+    Serial.print("workTime is not 0: ");
+    print_int64_t(workTime);
+    Serial.println("Write to memory");
+    EepromRTC.writeLong(0, workTime);
   } else {
-    // TODO: replace with memory read
-    // workTime = RTC.now().unixtime();
-    // workTime = 0;
-    // 59minutes in seconds
-    workTime = 3540;
+    workTime = EepromRTC.readLong(0);
   }
   Serial.print("Current workTime: ");
   print_int64_t(workTime);
@@ -344,7 +352,10 @@ void setup() {
   pinMode(pinB_enc2, INPUT); // B_enc2
   pinMode(pinReset_enc2, INPUT); // Reset distance
 
-  pinMode(7, INPUT);
+  pinMode(modeButton, INPUT);
+
+  pinMode(distanceInd, OUTPUT);
+  pinMode(timeInd, OUTPUT);
 
   // Enable interrupt A_enc1
   attachPCINT(digitalPinToPCINT(pinA_enc1), interruptChannelA_enc1, CHANGE);
@@ -358,7 +369,7 @@ void setup() {
   // Enable interrupt reset_enc2
   attachPCINT(digitalPinToPCINT(pinReset_enc2), interruptResetDISTANCE, RISING);
 
-  attachPCINT(digitalPinToPCINT(7), changeMode, RISING);
+  attachPCINT(digitalPinToPCINT(modeButton), changeMode, RISING);
 
   // Initialization of global variables
   StateA_enc1 = digitalRead(pinA_enc1);
@@ -409,9 +420,9 @@ void writeDecoder(int8_t decoder_i, bool p1, bool p2, bool p4, bool p8){
 }
 
 
-void showDistance(int64_t num, bool toShowSign){
+void showDistance(int64_t num, bool toShowDistance){
   decoder_i = 7;
-  if (toShowSign){
+  if (toShowDistance){
     if (num < 0){
       PCF0.write(0, LOW); // 1
       PCF0.write(1, HIGH); // 2
@@ -421,9 +432,13 @@ void showDistance(int64_t num, bool toShowSign){
       PCF0.write(0, HIGH); // 1
       PCF0.write(1, LOW); // 2
     }
+    digitalWrite(distanceInd, HIGH);
+    digitalWrite(timeInd, LOW);
   } else {
     PCF0.write(0, LOW); // 1
     PCF0.write(1, LOW); // 2
+    digitalWrite(distanceInd, LOW);
+    digitalWrite(timeInd, HIGH);
   }
   // 1, 2, 4, 8
   while (num > 0) {
@@ -463,8 +478,8 @@ void showDistance(int64_t num, bool toShowSign){
     decoder_i--;
     num /= 10;
   }
+  // Write 0 to rest of lamps
   while (decoder_i > 1){
-    // Write 0 to rest of lamps
     writeDecoder(decoder_i, 0, 0, 0, 0);
     decoder_i--;
   }
@@ -475,33 +490,32 @@ void loop() {
   if (indicatorsModeNumber == 0){
     numberToShow = distance;
     showDistance(numberToShow, true);
-    // Serial.print("number:");
-    // print_int64_t(numberToShow);
 
   } else if (indicatorsModeNumber == 1){
     // In C/C++, when you divide two integers, the result is also an integer. 
     // This means that the fractional part is discarded, and only the integer part is kept. 
     // Both workTime and writeTimer are sec
     int64_t minutes = workTime / 60;
-    // (minutes / 60) * 100 is hours. 
-    // Multiply by 100 to be able to concatenate minutes
+    // (minutes / 60) is hours. 
+    // Multiply by 100 to be able to concatenate minutes(1 | 2 -> 12)
     // minutes % 60 is not full hour(minutes remainder)
     numberToShow = (minutes / 60) * 100 + minutes % 60;
     showDistance(numberToShow, false);
     // ms -> s -> min -> hours
     // ms -> hours = ms / 1000 / 60 / 60
   }
-  // Serial.print("number:");
-  // print_int64_t(numberToShow);
+  Serial.print("number:");
+  print_int64_t(numberToShow);
 
-  // Serial.print("currTime: ");
   currTime = RTC.now().unixtime();
-  // print_uint64_t(currTime);
 
   // Increase worktime by delay_value
   if ((currTime - prevTime) > writeTimeout){
     workTime += currTime - prevTime;
+    Serial.print("workTime: ");
+    print_int64_t(workTime);
     Serial.println("Write to memory");
+    EepromRTC.writeLong(0, workTime);
     prevTime = currTime;
   }
 
