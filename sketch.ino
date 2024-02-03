@@ -1,7 +1,3 @@
-// TODO: 
-// 1. use uint where it is need
-// 2. show time on indicators
-
 #include <PCF8574.h>
 #include <PinChangeInterrupt.h>
 #include <RTClib.h>
@@ -46,12 +42,15 @@ volatile int8_t decoder_i;
 // max numbers int16_t 2^15 - 1 = 32767
 // max numbers int32_t 2^31 - 1 = 2147483647
 // max numbers int64_t 2^63 - 1 = 9223372036854775807
+// 
+// max numbers(in 32x systems) long 2^31 - 1 = 2147483647
+// max numbers(in 64x systems) long 2^63 - 1 = 9223372036854775807
 
 // In sec
 volatile int64_t currTime = 0;
 // In sec
 volatile int64_t prevTime = 0;
-// max workTime will be about 359996400 sec ("99999.00" to show)
+// max workTime will be about 359996400 sec ("99999.00" hours to show)
 // !!! Change workTime to 0 before next start for correct work
 // In sec
 volatile int64_t workTime = 0;
@@ -99,7 +98,7 @@ RTC_DS1307 RTC;
 AT24C32 EepromRTC(0x50);
 
 
-void safeDistanceIncrease(int32_t increaseStep){
+void safeDistanceIncrease(int64_t increaseStep){
   // Do not increase or decrease distance above or below 9999.999
   // because of 8 lamp limit
   // if ((distance + increaseStep) > 9999.999){
@@ -315,13 +314,14 @@ void setupPcfs() {
 
   // Read saved workTime from memory
   // https://adafruit.github.io/RTClib/html/class_date_time.html#ae4629e7b2ffeac4a0c8f8c3f9c545990
+  // Returns uint32_t seconds. Its ok for int64_t
   currTime = RTC.now().unixtime();
   prevTime = currTime;
   if (workTime != 0){
     // write value to memory
     // Case when both battery is low and power off
     // Write to memory workTime value. !!!! Change workTime to 0 before next start
-    Serial.print("workTime is not 0: ");
+    Serial.print("workTime is not 0(sec): ");
     print_int64_t(workTime);
     Serial.println("Write to memory");
     EepromRTC.writeLong(0, workTime);
@@ -495,24 +495,22 @@ void loop() {
     // In C/C++, when you divide two integers, the result is also an integer. 
     // This means that the fractional part is discarded, and only the integer part is kept. 
     // Both workTime and writeTimer are sec
-    int64_t minutes = workTime / 60;
-    // (minutes / 60) is hours. 
+    // (workTime / 3600) is hours.
     // Multiply by 100 to be able to concatenate minutes(1 | 2 -> 12)
     // minutes % 60 is not full hour(minutes remainder)
-    numberToShow = (minutes / 60) * 100 + minutes % 60;
+    numberToShow = (workTime / 3600) * 100 + (workTime / 60) % 60;
     showDistance(numberToShow, false);
-    // ms -> s -> min -> hours
-    // ms -> hours = ms / 1000 / 60 / 60
   }
-  Serial.print("number:");
-  print_int64_t(numberToShow);
+  // Serial.print("number:");
+  // print_int64_t(numberToShow);
 
   currTime = RTC.now().unixtime();
 
   // Increase worktime by delay_value
   if ((currTime - prevTime) > writeTimeout){
     workTime += currTime - prevTime;
-    Serial.print("workTime: ");
+    Serial.print("workTime(sec): ");
+    // Wokwi timer while simulation is not correct use other
     print_int64_t(workTime);
     Serial.println("Write to memory");
     EepromRTC.writeLong(0, workTime);
@@ -521,3 +519,9 @@ void loop() {
 
   delay(delay_value);
 }
+// TODO:
+// - Load AT24CX library from https://github.com/cyberp/AT24Cx/tree/master and replace "AT24CX.h" with <AT24CX.h>
+// - Use rotator to check if the number on indicators is correct because of new showing system
+// - Press the button to check if modes are changed properly
+// - Turn on device and wait a 1-2 minutes and see if time is written to memory(output in console)
+// - Turn off and turn on device to see if time was read from memory

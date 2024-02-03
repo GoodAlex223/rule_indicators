@@ -6,6 +6,7 @@
 - Added indicators for dots in both distance mode and time mode
 - Added AR24C32 module support. Time read and write from module.
     - Added AT24CX library from https://github.com/cyberp/AT24Cx/tree/master
+- Added useful comments
 
 ## ?
 
