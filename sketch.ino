@@ -40,11 +40,18 @@ volatile int8_t decoder_i;
 // max numbers int32_t 2^31 - 1 = 2147483647
 // max numbers int64_t 2^63 - 1 = 9223372036854775807
 
-// In ms
-volatile int64_t writeTimer = 0;
+// In sec
+volatile int64_t currTime = 0;
+// In sec
+volatile int64_t prevTime = 0;
+// max workTime will be about 359996400 sec ("99999.00" to show)
+// !!! Change workTime to 0 before next start for correct work
+// In sec
+volatile int64_t workTime = 0;
+// In sec
+const int64_t writeTimeout = 60;
+
 // In ms. 1000ms = 1sec
-const int64_t writeTimeout = 54000;
-// In ms
 const int64_t delay_value = 60;
 
 // Store current indicators mode
@@ -54,10 +61,6 @@ volatile int8_t indicatorsModeNumber = 0;  // int8_t: max values are -128 and 12
 // 0 -> 1 -> 0 -> 1...
 const int8_t maxIndicatorsModeNumber = 2;
 
-// max workTime will be about 359996400000 ms ("99999.00" to show)
-// !!! Change workTime to 0 before next start for correct work
-// In ms
-volatile int64_t workTime = 0;
 // The distance covered by the ruler
 // at startup 0
 volatile int64_t distance = 0;
@@ -212,7 +215,7 @@ void changeMode(){
   Serial.println(indicatorsModeNumber);
 }
 
-
+// print function; can be removed
 void print_uint64_t(uint64_t num) {
   // Function that can print uint64_t nums
   char rev[128]; 
@@ -232,7 +235,7 @@ void print_uint64_t(uint64_t num) {
   // Serial.println();
 }
 
-
+// print function; can be removed
 void print_int64_t(int64_t num) {
     char rev[128]; 
     char *p = rev+1;
@@ -303,17 +306,19 @@ void setupPcfs() {
 
   // Read saved workTime from memory
   // https://adafruit.github.io/RTClib/html/class_date_time.html#ae4629e7b2ffeac4a0c8f8c3f9c545990
+  currTime = RTC.now().unixtime();
+  prevTime = currTime;
   if (workTime != 0){
     // write value to memory
-    // Case the battery is low and power off
+    // Case when both battery is low and power off
     // Write to memory workTime
     // TODO: write to memory workTime value. !!!! Change workTime to 0 before next start
   } else {
     // TODO: replace with memory read
     // workTime = RTC.now().unixtime();
     // workTime = 0;
-    // 59minutes
-    workTime = 3540000;
+    // 59minutes in seconds
+    workTime = 3540;
   }
   Serial.print("Current workTime: ");
   print_int64_t(workTime);
@@ -410,6 +415,7 @@ void showDistance(int64_t num, bool toShowSign){
     if (num < 0){
       PCF0.write(0, LOW); // 1
       PCF0.write(1, HIGH); // 2
+      // while function works only with num > 0
       num = -num;
     } else {
       PCF0.write(0, HIGH); // 1
@@ -473,107 +479,30 @@ void loop() {
     // print_int64_t(numberToShow);
 
   } else if (indicatorsModeNumber == 1){
-    int64_t minutes = workTime / 1000 / 60;
+    // In C/C++, when you divide two integers, the result is also an integer. 
+    // This means that the fractional part is discarded, and only the integer part is kept. 
+    // Both workTime and writeTimer are sec
+    int64_t minutes = workTime / 60;
     // (minutes / 60) * 100 is hours. 
     // Multiply by 100 to be able to concatenate minutes
     // minutes % 60 is not full hour(minutes remainder)
     numberToShow = (minutes / 60) * 100 + minutes % 60;
     showDistance(numberToShow, false);
-
-    Serial.print("number:");
-    print_int64_t(numberToShow);
     // ms -> s -> min -> hours
     // ms -> hours = ms / 1000 / 60 / 60
   }
-  // dtostrf(numberToShow, 8, 0, tempString);
-
   // Serial.print("number:");
-  // // Serial.println(numberToShow / 1000.0, 3);
-  // Serial.println(tempString);
-  // // Serial.println(distance, 3);
+  // print_int64_t(numberToShow);
 
-  // decoder_i = 1;
-  // isMinus = false;
-
-  // // iterate through all chars of distanse str
-  // // Start with first character to omit sign of number and show it last
-  // for (int8_t char_i = 1; char_i < strlen(tempString); char_i++) {
-  //   // 1, 2, 4, 8
-  //   switch (tempString[char_i]){
-  //     case ' ':
-  //     case '0':
-  //       writeDecoder(decoder_i, 0, 0, 0, 0);
-  //       break;
-  //     case '-':
-  //       // Minus may not be the first char(index 0). E.g. |  -12345| or |     -12|
-  //       // So for example in case moving encoder from '-12' to '-8' 
-  //       // it will no clear '1' in '-12' and do not show '0' instead of '-' in '-8'
-  //       // (both empty char and minus(not at index 0) are '0' like above in code)
-  //       isMinus = true;
-  //       writeDecoder(decoder_i, 0, 0, 0, 0);
-  //       break;
-  //     case '1':
-  //       writeDecoder(decoder_i, 1, 0, 0, 1);
-  //       break;
-  //     case '2':
-  //       writeDecoder(decoder_i, 0, 1, 0, 0);
-  //       break;
-  //     case '3':
-  //       writeDecoder(decoder_i, 1, 1, 0, 0);
-  //       break;
-  //     case '4':
-  //       writeDecoder(decoder_i, 0, 0, 1, 0);
-  //       break;
-  //     case '5':
-  //       writeDecoder(decoder_i, 1, 0, 1, 0);
-  //       break;
-  //     case '6':
-  //       writeDecoder(decoder_i, 0, 1, 1, 0);
-  //       break;
-  //     case '7':
-  //       writeDecoder(decoder_i, 1, 1, 1, 0);
-  //       break;
-  //     case '8':
-  //       writeDecoder(decoder_i, 0, 0, 0, 1);
-  //       break;
-  //     case '9':
-  //       writeDecoder(decoder_i, 1, 0, 0, 1);
-  //       break;
-  //     // case '.':
-  //     //   // Do not increase decoder index, because dot is skipped and always showed
-  //     //   decoder_i--;
-  //     //   // break;
-  //   }
-  //   decoder_i++;
-  // }
-  // if (isMinus || tempString[0] == '-'){
-  //   PCF0.write(0, LOW); // 1
-  //   PCF0.write(1, HIGH); // 2
-  // } else {
-  //   PCF0.write(0, HIGH); // 1
-  //   PCF0.write(1, LOW); // 2
-  // }
-  Serial.print("time: ");
-  uint64_t time = RTC.now().unixtime();
-  print_uint64_t(time);
+  // Serial.print("currTime: ");
+  currTime = RTC.now().unixtime();
+  // print_uint64_t(currTime);
 
   // Increase worktime by delay_value
-  writeTimer += delay_value;
-  // every writeTimer ms of arduino working, write to memory new workTime
-  // print_int64_t(workTime);
-  // print_int64_t(writeTimer);
-  if (writeTimer >= writeTimeout){
-    // In C/C++, when you divide two integers, the result is also an integer. 
-    // This means that the fractional part is discarded, and only the integer part is kept. 
-    // Both workTime and writeTimer are ms
-    workTime += writeTimer;
-    // get part that is more than writeTimeout and save it
-    writeTimer -= writeTimeout;
-    Serial.print("workTime: ");
-    print_int64_t(workTime);
-    Serial.print("writeTimer: ");
-    print_int64_t(writeTimer);
+  if ((currTime - prevTime) > writeTimeout){
+    workTime += currTime - prevTime;
     Serial.println("Write to memory");
+    prevTime = currTime;
   }
 
   delay(delay_value);
