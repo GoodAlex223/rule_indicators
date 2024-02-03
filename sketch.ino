@@ -1,6 +1,10 @@
-#include <Wire.h>
+// TODO: 
+// 1. use uint where it is need
+// 2. show time on indicators
+
 #include <PCF8574.h>
 #include <PinChangeInterrupt.h>
+#include <RTClib.h>
 
 #define pinA_enc1 3
 #define pinB_enc1 2
@@ -20,13 +24,45 @@ volatile bool StateA_enc2, StateB_enc2;
 
 // volatile int8_t incStreak = 0; // used for step increasing during several consecutive scrolls of the second encoder
 volatile int8_t incStreak = 0; // used for step increasing during several consecutive scrolls of the second encoder
-volatile int64_t DISTANCE = 0; // at startup 0
 volatile int64_t incStep; // save previous step to detect when increase the streak
-volatile int64_t tempDistance;
 
 volatile int8_t decoder_i;
-volatile bool isMinus;
-char tempString[9];
+// volatile bool isMinus;
+// char tempString[9];
+
+// max number uint8_t 2^8 - 1 = 255
+// max number uint16_t 2^16 - 1 = 65535
+// max number uint32_t 2^32 - 1 = 4294967295
+// max number uint64_t 2^64 - 1 = 18446744073709551615
+// 
+// max numbers int8_t 2^7 - 1 = 127
+// max numbers int16_t 2^15 - 1 = 32767
+// max numbers int32_t 2^31 - 1 = 2147483647
+// max numbers int64_t 2^63 - 1 = 9223372036854775807
+
+// In ms
+volatile int64_t writeTimer = 0;
+// In ms. 1000ms = 1sec
+const int64_t writeTimeout = 54000;
+// In ms
+const int64_t delay_value = 60;
+
+// Store current indicators mode
+volatile int8_t indicatorsModeNumber = 0;  // int8_t: max values are -128 and 127
+// Loop from one state to another:
+// indicatorsModeNumber = indicatorsModeNumber + 1 % maxIndicatorsModeNumber
+// 0 -> 1 -> 0 -> 1...
+const int8_t maxIndicatorsModeNumber = 2;
+
+// max workTime will be about 359996400000 ms ("99999.00" to show)
+// !!! Change workTime to 0 before next start for correct work
+// In ms
+volatile int64_t workTime = 0;
+// The distance covered by the ruler
+// at startup 0
+volatile int64_t distance = 0;
+// To store temp values of either distance or workTime
+volatile int64_t numberToShow;
 
 // Expanders: PCF8574AP(https://www.nxp.com/docs/en/data-sheet/PCF8574_PCF8574A.pdf)
 // Default pins A4-SDA, A5-SCL
@@ -48,22 +84,24 @@ PCF8574 PCF2(0x3F); // bin: 0b00111111
 PCF8574 PCF3(0x3B); // bin: 0b00111011
 // PCF8574 PCF3(0xBB);
 
+RTC_DS1307 RTC;
+
 
 void safeDistanceIncrease(int32_t increaseStep){
-  // Do not increase or decrease DISTANCE above or below 9999.999
+  // Do not increase or decrease distance above or below 9999.999
   // because of 8 lamp limit
-  // if ((DISTANCE + increaseStep) > 9999.999){
-  //   DISTANCE = 9999.999;
-  // } else if ((DISTANCE + increaseStep) < -9999.999) {
-  //   DISTANCE = -9999.999;
+  // if ((distance + increaseStep) > 9999.999){
+  //   distance = 9999.999;
+  // } else if ((distance + increaseStep) < -9999.999) {
+  //   distance = -9999.999;
   // } else {
-  //   DISTANCE = DISTANCE + increaseStep;
+  //   distance = distance + increaseStep;
   // }
-  DISTANCE = max(min(DISTANCE + increaseStep, 9999999), -9999999);
-  // if (abs(DISTANCE + increaseStep) > 9999999){
-  //   DISTANCE = 9999999 * (pow(-1, (DISTANCE < 0)));
+  distance = max(min(distance + increaseStep, 9999999), -9999999);
+  // if (abs(distance + increaseStep) > 9999999){
+  //   distance = 9999999 * (pow(-1, (distance < 0)));
   // } else {
-  //   DISTANCE += increaseStep;
+  //   distance += increaseStep;
   // }
 }
 
@@ -78,7 +116,7 @@ void increaseDistance_enc2(int8_t step){
       incStreak = 0;
     }
     incStep = step;
-    // Changing DISTANCE with new increase step values. 
+    // Changing distance with new increase step values. 
     // All limits in states and multiplying of step are random numbers and can be adjusted
     if (10 > incStreak){
       safeDistanceIncrease(incStep);
@@ -94,7 +132,7 @@ void increaseDistance_enc2(int8_t step){
       safeDistanceIncrease(incStep * 100000);
     } else {
       // Multilying more then 1000000 require int64_t or long or even more 
-      // for incStep and DISTANCE
+      // for incStep and distance
       safeDistanceIncrease(incStep * 1000000);
     }
 }
@@ -163,8 +201,57 @@ void interruptChannelB_enc2() {
 
 
 void interruptResetDISTANCE(){
-  DISTANCE = 0;
+  distance = 0;
   incStreak = 0;
+}
+
+void changeMode(){
+  Serial.println("Mode was changed!");
+  // change mode value to next: 0 -> 1 -> 0 -> 1...
+  indicatorsModeNumber = (indicatorsModeNumber + 1) % maxIndicatorsModeNumber;
+  Serial.println(indicatorsModeNumber);
+}
+
+
+void print_uint64_t(uint64_t num) {
+  // Function that can print uint64_t nums
+  char rev[128]; 
+  char *p = rev+1;
+
+  while (num > 0) {
+    // Serial.println('0' + (num % 10));
+    *p++ = '0' + (num % 10);
+    num /= 10;
+  }
+  p--;
+  /*Print the number which is now in reverse*/
+  while (p > rev) {
+    Serial.print(*p--);
+  }
+  Serial.println(*p);
+  // Serial.println();
+}
+
+
+void print_int64_t(int64_t num) {
+    char rev[128]; 
+    char *p = rev+1;
+
+    if (num < 0) {
+        Serial.print('-');
+        num = -num;
+    }
+
+    while (num > 0) {
+        *p++ = '0' + (num % 10);
+        num /= 10;
+    }
+    p--;
+    /*Print the number which is now in reverse*/
+    while (p > rev) {
+        Serial.print(*p--);
+    }
+    Serial.println(*p);
 }
 
 
@@ -209,6 +296,28 @@ void setupPcfs() {
   }
   PCF3.write8(0);
 
+  if (!RTC.begin()) {
+    Serial.println("RTC module not responsing");
+    while (1);
+  }
+
+  // Read saved workTime from memory
+  // https://adafruit.github.io/RTClib/html/class_date_time.html#ae4629e7b2ffeac4a0c8f8c3f9c545990
+  if (workTime != 0){
+    // write value to memory
+    // Case the battery is low and power off
+    // Write to memory workTime
+    // TODO: write to memory workTime value. !!!! Change workTime to 0 before next start
+  } else {
+    // TODO: replace with memory read
+    // workTime = RTC.now().unixtime();
+    // workTime = 0;
+    // 59minutes
+    workTime = 3540000;
+  }
+  Serial.print("Current workTime: ");
+  print_int64_t(workTime);
+  
   Serial.println("PCFs setupes were finished.");
 }
 
@@ -228,7 +337,9 @@ void setup() {
   // Encoder 2
   pinMode(pinA_enc2, INPUT); // A_enc2
   pinMode(pinB_enc2, INPUT); // B_enc2
-  pinMode(pinReset_enc2, INPUT); // Reset DISTANCE
+  pinMode(pinReset_enc2, INPUT); // Reset distance
+
+  pinMode(7, INPUT);
 
   // Enable interrupt A_enc1
   attachPCINT(digitalPinToPCINT(pinA_enc1), interruptChannelA_enc1, CHANGE);
@@ -242,6 +353,8 @@ void setup() {
   // Enable interrupt reset_enc2
   attachPCINT(digitalPinToPCINT(pinReset_enc2), interruptResetDISTANCE, RISING);
 
+  attachPCINT(digitalPinToPCINT(7), changeMode, RISING);
+
   // Initialization of global variables
   StateA_enc1 = digitalRead(pinA_enc1);
   StateB_enc1 = digitalRead(pinB_enc1);
@@ -249,6 +362,9 @@ void setup() {
   // Initialization of global variables
   StateA_enc2 = digitalRead(pinA_enc2);
   StateB_enc2 = digitalRead(pinB_enc2);
+
+  Serial.print("delay_value: ");
+  print_int64_t(delay_value);
 
   Serial.println("Setup finished");
 }
@@ -288,79 +404,177 @@ void writeDecoder(int8_t decoder_i, bool p1, bool p2, bool p4, bool p8){
 }
 
 
-void loop() {
-  tempDistance = DISTANCE;
-
-  // char tempString[9];
-
-  // dtostrf(tempDistance, 9, 3, tempString);
-  dtostrf(tempDistance, 8, 0, tempString);
-
-  Serial.print("number:");
-  // Serial.println(tempDistance / 1000.0, 3);
-  Serial.println(tempString);
-  // Serial.println(DISTANCE, 3);
-
-  decoder_i = 1;
-  isMinus = false;
-
-  // iterate through all chars of distanse str
-  // Start with first character to omit sign of number and show it last
-  for (int8_t char_i = 1; char_i < strlen(tempString); char_i++) {
-    // 1, 2, 4, 8
-    switch (tempString[char_i]){
-      case ' ':
-      case '0':
-        writeDecoder(decoder_i, 0, 0, 0, 0);
-        break;
-      case '-':
-        // Minus may not be the first char(index 0). E.g. |  -12345| or |     -12|
-        // So for example in case moving encoder from '-12' to '-8' 
-        // it will no clear '1' in '-12' and do not show '0' instead of '-' in '-8'
-        // (both empty char and minus(not at index 0) are '0' like above in code)
-        isMinus = true;
-        writeDecoder(decoder_i, 0, 0, 0, 0);
-        break;
-      case '1':
-        writeDecoder(decoder_i, 1, 0, 0, 1);
-        break;
-      case '2':
-        writeDecoder(decoder_i, 0, 1, 0, 0);
-        break;
-      case '3':
-        writeDecoder(decoder_i, 1, 1, 0, 0);
-        break;
-      case '4':
-        writeDecoder(decoder_i, 0, 0, 1, 0);
-        break;
-      case '5':
-        writeDecoder(decoder_i, 1, 0, 1, 0);
-        break;
-      case '6':
-        writeDecoder(decoder_i, 0, 1, 1, 0);
-        break;
-      case '7':
-        writeDecoder(decoder_i, 1, 1, 1, 0);
-        break;
-      case '8':
-        writeDecoder(decoder_i, 0, 0, 0, 1);
-        break;
-      case '9':
-        writeDecoder(decoder_i, 1, 0, 0, 1);
-        break;
-      // case '.':
-      //   // Do not increase decoder index, because dot is skipped and always showed
-      //   decoder_i--;
-      //   // break;
+void showDistance(int64_t num, bool toShowSign){
+  decoder_i = 7;
+  if (toShowSign){
+    if (num < 0){
+      PCF0.write(0, LOW); // 1
+      PCF0.write(1, HIGH); // 2
+      num = -num;
+    } else {
+      PCF0.write(0, HIGH); // 1
+      PCF0.write(1, LOW); // 2
     }
-    decoder_i++;
-  }
-  if (isMinus || tempString[0] == '-'){
-    PCF0.write(0, LOW); // 1
-    PCF0.write(1, HIGH); // 2
   } else {
-    PCF0.write(0, HIGH); // 1
+    PCF0.write(0, LOW); // 1
     PCF0.write(1, LOW); // 2
   }
-  delay(60);
+  // 1, 2, 4, 8
+  while (num > 0) {
+    // Serial.println('0' + (num % 10));
+    switch(num % 10){
+      case 0:
+        writeDecoder(decoder_i, 0, 0, 0, 0);
+        break;
+      case 1:
+        writeDecoder(decoder_i, 1, 0, 0, 0);
+        break;
+      case 2:
+        writeDecoder(decoder_i, 0, 1, 0, 0);
+        break;
+      case 3:
+        writeDecoder(decoder_i, 1, 1, 0, 0);
+        break;
+      case 4:
+        writeDecoder(decoder_i, 0, 0, 1, 0);
+        break;
+      case 5:
+        writeDecoder(decoder_i, 1, 0, 1, 0);
+        break;
+      case 6:
+        writeDecoder(decoder_i, 0, 1, 1, 0);
+        break;
+      case 7:
+        writeDecoder(decoder_i, 1, 1, 1, 0);
+        break;
+      case 8:
+        writeDecoder(decoder_i, 0, 0, 0, 1);
+        break;
+      case 9:
+        writeDecoder(decoder_i, 1, 0, 0, 1);
+        break;
+    }
+    decoder_i--;
+    num /= 10;
+  }
+  while (decoder_i > 1){
+    // Write 0 to rest of lamps
+    writeDecoder(decoder_i, 0, 0, 0, 0);
+    decoder_i--;
+  }
+}
+
+
+void loop() {
+  if (indicatorsModeNumber == 0){
+    numberToShow = distance;
+    showDistance(numberToShow, true);
+    // Serial.print("number:");
+    // print_int64_t(numberToShow);
+
+  } else if (indicatorsModeNumber == 1){
+    int64_t minutes = workTime / 1000 / 60;
+    // (minutes / 60) * 100 is hours. 
+    // Multiply by 100 to be able to concatenate minutes
+    // minutes % 60 is not full hour(minutes remainder)
+    numberToShow = (minutes / 60) * 100 + minutes % 60;
+    showDistance(numberToShow, false);
+
+    Serial.print("number:");
+    print_int64_t(numberToShow);
+    // ms -> s -> min -> hours
+    // ms -> hours = ms / 1000 / 60 / 60
+  }
+  // dtostrf(numberToShow, 8, 0, tempString);
+
+  // Serial.print("number:");
+  // // Serial.println(numberToShow / 1000.0, 3);
+  // Serial.println(tempString);
+  // // Serial.println(distance, 3);
+
+  // decoder_i = 1;
+  // isMinus = false;
+
+  // // iterate through all chars of distanse str
+  // // Start with first character to omit sign of number and show it last
+  // for (int8_t char_i = 1; char_i < strlen(tempString); char_i++) {
+  //   // 1, 2, 4, 8
+  //   switch (tempString[char_i]){
+  //     case ' ':
+  //     case '0':
+  //       writeDecoder(decoder_i, 0, 0, 0, 0);
+  //       break;
+  //     case '-':
+  //       // Minus may not be the first char(index 0). E.g. |  -12345| or |     -12|
+  //       // So for example in case moving encoder from '-12' to '-8' 
+  //       // it will no clear '1' in '-12' and do not show '0' instead of '-' in '-8'
+  //       // (both empty char and minus(not at index 0) are '0' like above in code)
+  //       isMinus = true;
+  //       writeDecoder(decoder_i, 0, 0, 0, 0);
+  //       break;
+  //     case '1':
+  //       writeDecoder(decoder_i, 1, 0, 0, 1);
+  //       break;
+  //     case '2':
+  //       writeDecoder(decoder_i, 0, 1, 0, 0);
+  //       break;
+  //     case '3':
+  //       writeDecoder(decoder_i, 1, 1, 0, 0);
+  //       break;
+  //     case '4':
+  //       writeDecoder(decoder_i, 0, 0, 1, 0);
+  //       break;
+  //     case '5':
+  //       writeDecoder(decoder_i, 1, 0, 1, 0);
+  //       break;
+  //     case '6':
+  //       writeDecoder(decoder_i, 0, 1, 1, 0);
+  //       break;
+  //     case '7':
+  //       writeDecoder(decoder_i, 1, 1, 1, 0);
+  //       break;
+  //     case '8':
+  //       writeDecoder(decoder_i, 0, 0, 0, 1);
+  //       break;
+  //     case '9':
+  //       writeDecoder(decoder_i, 1, 0, 0, 1);
+  //       break;
+  //     // case '.':
+  //     //   // Do not increase decoder index, because dot is skipped and always showed
+  //     //   decoder_i--;
+  //     //   // break;
+  //   }
+  //   decoder_i++;
+  // }
+  // if (isMinus || tempString[0] == '-'){
+  //   PCF0.write(0, LOW); // 1
+  //   PCF0.write(1, HIGH); // 2
+  // } else {
+  //   PCF0.write(0, HIGH); // 1
+  //   PCF0.write(1, LOW); // 2
+  // }
+  Serial.print("time: ");
+  uint64_t time = RTC.now().unixtime();
+  print_uint64_t(time);
+
+  // Increase worktime by delay_value
+  writeTimer += delay_value;
+  // every writeTimer ms of arduino working, write to memory new workTime
+  // print_int64_t(workTime);
+  // print_int64_t(writeTimer);
+  if (writeTimer >= writeTimeout){
+    // In C/C++, when you divide two integers, the result is also an integer. 
+    // This means that the fractional part is discarded, and only the integer part is kept. 
+    // Both workTime and writeTimer are ms
+    workTime += writeTimer;
+    // get part that is more than writeTimeout and save it
+    writeTimer -= writeTimeout;
+    Serial.print("workTime: ");
+    print_int64_t(workTime);
+    Serial.print("writeTimer: ");
+    print_int64_t(writeTimer);
+    Serial.println("Write to memory");
+  }
+
+  delay(delay_value);
 }
