@@ -16,22 +16,8 @@
 #define distanceInd 8
 #define timeInd 9
 
-// Global values
-const int8_t STEP = 1;
-
-// initialized at startup by reading the legs for encoder 1
-volatile bool StateA_enc1, StateB_enc1;
-// initialized at startup by reading the legs for encoder 2
-volatile bool StateA_enc2, StateB_enc2;
-// int8_t is enought for incStreak. If it turns negative it will add only 1
-
-// volatile int8_t incStreak = 0; // used for step increasing during several consecutive scrolls of the second encoder
-volatile int8_t incStreak = 0; // used for step increasing during several consecutive scrolls of the second encoder
-volatile int64_t incStep; // save previous step to detect when increase the streak
-
-volatile int8_t decoder_i;
-// volatile bool isMinus;
-// char tempString[9];
+#define generalStartSignal 10
+#define spindelStartSignal 11
 
 // max number uint8_t 2^8 - 1 = 255
 // max number uint16_t 2^16 - 1 = 65535
@@ -46,32 +32,45 @@ volatile int8_t decoder_i;
 // max numbers(in 32x systems) long 2^31 - 1 = 2147483647
 // max numbers(in 64x systems) long 2^63 - 1 = 9223372036854775807
 
-// In sec
-volatile int64_t currTime = 0;
-// In sec
-volatile int64_t prevTime = 0;
-// max workTime will be about 359996400 sec ("99999.00" hours to show)
-// !!! Change workTime to 0 before next start for correct work
-// In sec
-volatile int64_t workTime = 0;
-// In sec
-const int64_t writeTimeout = 60;
+const int8_t STEP = 1;
+volatile bool StateA_enc1, StateB_enc1;
+volatile bool StateA_enc2, StateB_enc2;
+// int8_t is enought for incStreak. If it turns negative it will add only 1
+// volatile int8_t incStreak = 0; // used for step increasing during several consecutive scrolls of the second encoder
+volatile int8_t incStreak = 0; // used for step increasing during several consecutive scrolls of the second encoder
+volatile int64_t incStep; // save previous step to detect when increase the streak
+volatile int8_t decoder_i;
+// volatile bool isMinus;
+// char tempString[9];
+// The distance covered by the ruler
+// at startup 0
+volatile int64_t distance = 0;
 
-// In ms. 1000ms = 1sec
-const int64_t delay_value = 60;
+// In sec
+volatile uint32_t currTime = 0;
+// max generalWorkTime and spindelWorkTime will be about 359996400 sec 
+// ("99999.00" hours to show; only for 7 lamps)
+// In sec
+volatile uint32_t generalWorkTime;
+const uint8_t generalWorkTimeAdress = 0;
+bool toIncreaseGeneralWorkTime = false;
+uint32_t generalPrevTime;
+// In sec
+volatile uint32_t spindelWorkTime;
+const uint8_t spindelWorkTimeAdress = 4;
+bool toIncreaseSpindelWorkTime = false;
+uint32_t spindelPrevTime;
+
+// To store temp values of either distance or work times
+// Used int64_t type to include int32_t and below and uint32_t and below
+volatile int64_t numberToShow;
 
 // Store current indicators mode
 volatile int8_t indicatorsModeNumber = 0;  // int8_t: max values are -128 and 127
 // Loop from one state to another:
 // indicatorsModeNumber = indicatorsModeNumber + 1 % maxIndicatorsModeNumber
-// 0 -> 1 -> 0 -> 1...
-const int8_t maxIndicatorsModeNumber = 2;
-
-// The distance covered by the ruler
-// at startup 0
-volatile int64_t distance = 0;
-// To store temp values of either distance or workTime
-volatile int64_t numberToShow;
+// 0 -> 1 -> 2 -> 0...
+const int8_t maxIndicatorsModeNumber = 3;
 
 // Expanders: PCF8574AP(https://www.nxp.com/docs/en/data-sheet/PCF8574_PCF8574A.pdf)
 // Default pins A4-SDA, A5-SCL
@@ -99,6 +98,9 @@ AT24C32 EepromRTC(0x50);
 
 
 void safeDistanceIncrease(int64_t increaseStep){
+  // DO NOT PASS increaseStep above increaseStep_type_int_limit - 9999999(for 7 lamps) 
+  // as it change distance to negative
+
   // Do not increase or decrease distance above or below 9999.999
   // because of 8 lamp limit
   // if ((distance + increaseStep) > 9999.999){
@@ -217,31 +219,44 @@ void interruptResetDISTANCE(){
 }
 
 void changeMode(){
-  Serial.println("Mode was changed!");
   // change mode value to next: 0 -> 1 -> 0 -> 1...
   indicatorsModeNumber = (indicatorsModeNumber + 1) % maxIndicatorsModeNumber;
+  Serial.print("Mode was changed! Current mode: ");
   Serial.println(indicatorsModeNumber);
 }
 
-// print function; can be removed
-void print_uint64_t(uint64_t num) {
-  // Function that can print uint64_t nums
-  char rev[128]; 
-  char *p = rev+1;
-
-  while (num > 0) {
-    // Serial.println('0' + (num % 10));
-    *p++ = '0' + (num % 10);
-    num /= 10;
-  }
-  p--;
-  /*Print the number which is now in reverse*/
-  while (p > rev) {
-    Serial.print(*p--);
-  }
-  Serial.println(*p);
-  // Serial.println();
+void startGeneralWorkTimeIncreasing(){
+  toIncreaseGeneralWorkTime = !toIncreaseGeneralWorkTime;
+  generalPrevTime = currTime;
+  Serial.print("General work time starts increasing: ");
+  Serial.println(toIncreaseGeneralWorkTime);
 }
+void startSpindelWorkTimeIncreasing(){
+  toIncreaseSpindelWorkTime = !toIncreaseSpindelWorkTime;
+  spindelPrevTime = currTime;
+  Serial.print("Spindel work time starts increasing: ");
+  Serial.println(toIncreaseSpindelWorkTime);
+}
+
+// // print function; can be removed
+// void print_uint64_t(uint64_t num) {
+//   // Function that can print uint64_t nums
+//   char rev[128]; 
+//   char *p = rev+1;
+
+//   while (num > 0) {
+//     // Serial.println('0' + (num % 10));
+//     *p++ = '0' + (num % 10);
+//     num /= 10;
+//   }
+//   p--;
+//   /*Print the number which is now in reverse*/
+//   while (p > rev) {
+//     Serial.print(*p--);
+//   }
+//   Serial.println(*p);
+//   // Serial.println();
+// }
 
 // print function; can be removed
 void print_int64_t(int64_t num) {
@@ -262,7 +277,7 @@ void print_int64_t(int64_t num) {
     while (p > rev) {
         Serial.print(*p--);
     }
-    Serial.println(*p);
+    // Serial.println(*p);
 }
 
 
@@ -312,24 +327,20 @@ void setupPcfs() {
     while (1);
   }
 
-  // Read saved workTime from memory
+  // Read saved generalWorkTime from memory
   // https://adafruit.github.io/RTClib/html/class_date_time.html#ae4629e7b2ffeac4a0c8f8c3f9c545990
   // Returns uint32_t seconds. Its ok for int64_t
   currTime = RTC.now().unixtime();
-  prevTime = currTime;
-  if (workTime != 0){
-    // write value to memory
-    // Case when both battery is low and power off
-    // Write to memory workTime value. !!!! Change workTime to 0 before next start
-    Serial.print("workTime is not 0(sec): ");
-    print_int64_t(workTime);
-    Serial.println("Write to memory");
-    EepromRTC.writeLong(0, workTime);
-  } else {
-    workTime = EepromRTC.readLong(0);
-  }
-  Serial.print("Current workTime: ");
-  print_int64_t(workTime);
+
+  generalWorkTime = EepromRTC.readLong(generalWorkTimeAdress);
+  spindelWorkTime = EepromRTC.readLong(spindelWorkTimeAdress);
+
+  Serial.print("Get time from RTC -- currTime: ");
+  Serial.println(currTime);
+  Serial.print("Read from memory -- generalWorkTime: ");
+  Serial.println(generalWorkTime);
+  Serial.print("Read from memory -- spindelWorkTime: ");
+  Serial.println(spindelWorkTime);
   
   Serial.println("PCFs setupes were finished.");
 }
@@ -357,6 +368,9 @@ void setup() {
   pinMode(distanceInd, OUTPUT);
   pinMode(timeInd, OUTPUT);
 
+  pinMode(generalStartSignal, INPUT);
+  pinMode(spindelStartSignal, INPUT);
+
   // Enable interrupt A_enc1
   attachPCINT(digitalPinToPCINT(pinA_enc1), interruptChannelA_enc1, CHANGE);
   // Enable interrupt B_enc1
@@ -371,16 +385,15 @@ void setup() {
 
   attachPCINT(digitalPinToPCINT(modeButton), changeMode, RISING);
 
+  attachPCINT(digitalPinToPCINT(generalStartSignal), startGeneralWorkTimeIncreasing, CHANGE);
+  attachPCINT(digitalPinToPCINT(spindelStartSignal), startSpindelWorkTimeIncreasing, CHANGE);
+
   // Initialization of global variables
   StateA_enc1 = digitalRead(pinA_enc1);
   StateB_enc1 = digitalRead(pinB_enc1);
-
   // Initialization of global variables
   StateA_enc2 = digitalRead(pinA_enc2);
   StateB_enc2 = digitalRead(pinB_enc2);
-
-  Serial.print("delay_value: ");
-  print_int64_t(delay_value);
 
   Serial.println("Setup finished");
 }
@@ -479,7 +492,7 @@ void showDistance(int64_t num, bool toShowDistance){
     num /= 10;
   }
   // Write 0 to rest of lamps
-  while (decoder_i > 1){
+  while (decoder_i > 0){
     writeDecoder(decoder_i, 0, 0, 0, 0);
     decoder_i--;
   }
@@ -490,34 +503,54 @@ void loop() {
   if (indicatorsModeNumber == 0){
     numberToShow = distance;
     showDistance(numberToShow, true);
-
   } else if (indicatorsModeNumber == 1){
     // In C/C++, when you divide two integers, the result is also an integer. 
     // This means that the fractional part is discarded, and only the integer part is kept. 
-    // Both workTime and writeTimer are sec
-    // (workTime / 3600) is hours.
+    // Both generalWorkTime and writeTimer are sec
+    // (generalWorkTime / 3600) is hours.
     // Multiply by 100 to be able to concatenate minutes(1 | 2 -> 12)
     // minutes % 60 is not full hour(minutes remainder)
-    numberToShow = (workTime / 3600) * 100 + (workTime / 60) % 60;
+    numberToShow = (generalWorkTime / 3600) * 100 + (generalWorkTime / 60) % 60;
+    showDistance(numberToShow, false);
+  } else if (indicatorsModeNumber == 2){
+    numberToShow = (spindelWorkTime / 3600) * 100 + (spindelWorkTime / 60) % 60;
     showDistance(numberToShow, false);
   }
-  // Serial.print("number:");
-  // print_int64_t(numberToShow);
+  Serial.print("Milimeters:");
+  print_int64_t(distance);
+  Serial.print(" generalWorkTime(sec):");
+  Serial.print(generalWorkTime);
+  Serial.print(" spindelWorkTime(sec):");
+  Serial.print(spindelWorkTime);
+  Serial.println();
 
+  // Do not increase worktime by delay_value because interruptions additionally take some time
+  // so time increases not only after delay
   currTime = RTC.now().unixtime();
 
-  // Increase worktime by delay_value
-  if ((currTime - prevTime) > writeTimeout){
-    workTime += currTime - prevTime;
-    Serial.print("workTime(sec): ");
-    // Wokwi timer while simulation is not correct use other
-    print_int64_t(workTime);
-    Serial.println("Write to memory");
-    EepromRTC.writeLong(0, workTime);
-    prevTime = currTime;
+  // currTime and prevTime are seconds
+  // 60 is seconds
+  // Wokwi timer while simulation is not correct use other
+  if (toIncreaseGeneralWorkTime){
+    if ((currTime - generalPrevTime) > 60){
+        generalWorkTime += currTime - generalPrevTime;
+        EepromRTC.writeLong(generalWorkTimeAdress, generalWorkTime);
+        Serial.print("Wrote to memory -- generalWorkTime(sec): ");
+        Serial.println(generalWorkTime);
+        generalPrevTime = currTime;
+      }
+  }
+  if (toIncreaseSpindelWorkTime){
+    if ((currTime - spindelPrevTime) > 60){
+      spindelWorkTime += currTime - spindelPrevTime;
+      EepromRTC.writeLong(spindelWorkTimeAdress, spindelWorkTime);
+      Serial.print("Wrote to memory -- spindelWorkTime(sec): ");
+      Serial.println(spindelWorkTime);
+      spindelPrevTime = currTime;
+    }
   }
 
-  delay(delay_value);
+  delay(60);
 }
 // TODO:
 // - Load AT24CX library from https://github.com/cyberp/AT24Cx/tree/master and replace "AT24CX.h" with <AT24CX.h>
