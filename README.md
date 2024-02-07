@@ -4,6 +4,12 @@
 
 - Number showing logic: removed unnecessary code for 0 showing. Changed while state, so now while decoder_i > 0 loop will be worked for showing numbers. In case of number of digits is more then 7, only last 7 digits will be shown
 - Limits of timers: zeroing timers if they more then 359996400 sec or "99999.00" hours because of only 5 lamps are to show hours and limited logic of showing 7+ numbers. Zeroing at devices setup
+- Added info to console output:
+  - Status of 3 buttons - not to pop up, but to be immediately clear
+    - general button
+    - spindel button
+    - mode button
+  - Present time (to check the clock module)
 
 ## 04.02.24
 

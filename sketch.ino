@@ -53,13 +53,13 @@ volatile uint32_t currTime = 0;
 // In sec
 volatile uint32_t generalWorkTime;
 const uint8_t generalWorkTimeAdress = 0;
-bool toIncreaseGeneralWorkTime = false;
-uint32_t generalPrevTime;
+volatile bool toIncreaseGeneralWorkTime = false;
+volatile uint32_t generalPrevTime;
 // In sec
 volatile uint32_t spindelWorkTime;
 const uint8_t spindelWorkTimeAdress = 4;
-bool toIncreaseSpindelWorkTime = false;
-uint32_t spindelPrevTime;
+volatile bool toIncreaseSpindelWorkTime = false;
+volatile uint32_t spindelPrevTime;
 
 // To store temp values of either distance or work times
 // Used int64_t type to include int32_t and below and uint32_t and below
@@ -221,21 +221,15 @@ void interruptResetDISTANCE(){
 void changeMode(){
   // change mode value to next: 0 -> 1 -> 0 -> 1...
   indicatorsModeNumber = (indicatorsModeNumber + 1) % maxIndicatorsModeNumber;
-  Serial.print("Mode was changed! Current mode: ");
-  Serial.println(indicatorsModeNumber);
 }
 
 void startGeneralWorkTimeIncreasing(){
   toIncreaseGeneralWorkTime = !toIncreaseGeneralWorkTime;
   generalPrevTime = currTime;
-  Serial.print("General work time starts increasing: ");
-  Serial.println(toIncreaseGeneralWorkTime);
 }
 void startSpindelWorkTimeIncreasing(){
   toIncreaseSpindelWorkTime = !toIncreaseSpindelWorkTime;
   spindelPrevTime = currTime;
-  Serial.print("Spindel work time starts increasing: ");
-  Serial.println(toIncreaseSpindelWorkTime);
 }
 
 // // print function; can be removed
@@ -522,17 +516,25 @@ void loop() {
     numberToShow = (spindelWorkTime / 3600) * 100 + (spindelWorkTime / 60) % 60;
     showDistance(numberToShow, false);
   }
-  Serial.print("Milimeters:");
-  print_int64_t(distance);
-  Serial.print(" generalWorkTime(sec):");
-  Serial.print(generalWorkTime);
-  Serial.print(" spindelWorkTime(sec):");
-  Serial.print(spindelWorkTime);
-  Serial.println();
 
   // Do not increase worktime by delay_value because interruptions additionally take some time
   // so time increases not only after delay
   currTime = RTC.now().unixtime();
+
+  Serial.print("mms:");
+  print_int64_t(distance);
+  Serial.print(" - time(sec):");
+  Serial.print(currTime);
+  Serial.print(" - mode state:");
+  Serial.print(indicatorsModeNumber);
+  Serial.print(" - general state:");
+  Serial.print(toIncreaseGeneralWorkTime);
+  Serial.print(" - general(sec):");
+  Serial.print(generalWorkTime);
+  Serial.print(" - spindel state:");
+  Serial.print(toIncreaseSpindelWorkTime);
+  Serial.print(" - spindel(sec):");
+  Serial.print(spindelWorkTime);
 
   // currTime and prevTime are seconds
   // 60 is seconds
@@ -541,21 +543,19 @@ void loop() {
     if ((currTime - generalPrevTime) > 60){
         generalWorkTime += currTime - generalPrevTime;
         EepromRTC.writeLong(generalWorkTimeAdress, generalWorkTime);
-        Serial.print("Wrote to memory -- generalWorkTime(sec): ");
-        Serial.println(generalWorkTime);
         generalPrevTime = currTime;
+        Serial.print(" - WROTE TO MEMORY: generalWorkTime");
       }
   }
   if (toIncreaseSpindelWorkTime){
     if ((currTime - spindelPrevTime) > 60){
       spindelWorkTime += currTime - spindelPrevTime;
       EepromRTC.writeLong(spindelWorkTimeAdress, spindelWorkTime);
-      Serial.print("Wrote to memory -- spindelWorkTime(sec): ");
-      Serial.println(spindelWorkTime);
       spindelPrevTime = currTime;
+      Serial.print(" - WROTE TO MEMORY: spindelWorkTime");
     }
   }
-
+  Serial.println();
   delay(60);
 }
 // TODO:
