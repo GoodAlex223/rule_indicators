@@ -39,7 +39,7 @@ volatile bool StateA_enc2, StateB_enc2;
 // volatile int8_t incStreak = 0; // used for step increasing during several consecutive scrolls of the second encoder
 volatile int8_t incStreak = 0; // used for step increasing during several consecutive scrolls of the second encoder
 volatile int64_t incStep; // save previous step to detect when increase the streak
-volatile int8_t decoder_i;
+int8_t decoder_i;
 // volatile bool isMinus;
 // char tempString[9];
 // The distance covered by the ruler
@@ -48,22 +48,23 @@ volatile int64_t distance = 0;
 
 // In sec
 volatile uint32_t currTime = 0;
+volatile uint32_t prevModeButtonInterTime = 0;
 // max motorSeconds and spindelMotorSeconds will be about 359996400 sec 
 // ("99999.00" hours to show; only for 7 lamps)
 // In sec
-volatile uint32_t motorSeconds;
+uint32_t motorSeconds;
 const uint8_t motorSecondsMemoryAdress = 0;
 volatile bool toIncreaseMotorSeconds = false;
 volatile uint32_t motorPrevTime;
 // In sec
-volatile uint32_t spindelMotorSeconds;
+uint32_t spindelMotorSeconds;
 const uint8_t spindelMotorSecondsMemoryAdress = 4;
 volatile bool toIncreaseSpindelMotorSeconds = false;
 volatile uint32_t spindelPrevTime;
 
 // To store temp values of either distance or work times
 // Used int64_t type to include int32_t and below and uint32_t and below
-volatile int64_t numberToShow;
+int64_t numberToShow;
 
 // Store current indicators mode
 volatile int8_t indicatorsModeNumber = 0;  // int8_t: max values are -128 and 127
@@ -218,19 +219,24 @@ void interruptResetDISTANCE(){
   incStreak = 0;
 }
 
+// bool butt = 0;
 
 void changeMode(){
-  // change mode value to next: 0 -> 1 -> 0 -> 1...
-  indicatorsModeNumber = (indicatorsModeNumber + 1) % maxIndicatorsModeNumber;
+  // 1 sec delay to avoid button rattle
+  if (currTime - prevModeButtonInterTime >= 1){
+    // change mode value to next: 0 -> 1 -> 0 -> 1...
+    indicatorsModeNumber = (indicatorsModeNumber + 1) % maxIndicatorsModeNumber;
+    prevModeButtonInterTime = currTime;
+  }
 }
 
 
-void startGeneralWorkTimeIncreasing(){
+void changeMotorSecondsIncreasing(){
   toIncreaseMotorSeconds = !toIncreaseMotorSeconds;
   motorPrevTime = currTime;
 }
 
-void startSpindelWorkTimeIncreasing(){
+void changeSpindelMotorSecondsIncreasing(){
   toIncreaseSpindelMotorSeconds = !toIncreaseSpindelMotorSeconds;
   spindelPrevTime = currTime;
 }
@@ -361,7 +367,6 @@ void setup() {
   // Encoder 1
   pinMode(pinA_enc1, INPUT); // A_enc1
   pinMode(pinB_enc1, INPUT); // B_enc1
-
   // Encoder 2
   pinMode(pinA_enc2, INPUT); // A_enc2
   pinMode(pinB_enc2, INPUT); // B_enc2
@@ -389,8 +394,8 @@ void setup() {
 
   attachPCINT(digitalPinToPCINT(modeButton), changeMode, RISING);
 
-  attachPCINT(digitalPinToPCINT(generalStartSignal), startGeneralWorkTimeIncreasing, CHANGE);
-  attachPCINT(digitalPinToPCINT(spindelStartSignal), startSpindelWorkTimeIncreasing, CHANGE);
+  attachPCINT(digitalPinToPCINT(generalStartSignal), changeMotorSecondsIncreasing, CHANGE);
+  attachPCINT(digitalPinToPCINT(spindelStartSignal), changeSpindelMotorSecondsIncreasing, CHANGE);
 
   // Initialization of global variables
   StateA_enc1 = digitalRead(pinA_enc1);
