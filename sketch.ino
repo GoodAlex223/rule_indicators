@@ -334,7 +334,15 @@ void setupPcfs() {
 
   generalWorkTime = EepromRTC.readLong(generalWorkTimeAdress);
   spindelWorkTime = EepromRTC.readLong(spindelWorkTimeAdress);
-
+  // 4294967295 is limit for uint32_t and for page of memory module
+  // (max page size is 4 bytes(4 * 8 = 32))
+  // 359996400 is 99999 hours("99999.00" on display)
+  if (generalWorkTime > 359996400){
+    generalWorkTime = 0;
+  }
+  if (spindelWorkTime > 359996400){
+    spindelWorkTime = 0;
+  }
   Serial.print("Get time from RTC -- currTime: ");
   Serial.println(currTime);
   Serial.print("Read from memory -- generalWorkTime: ");
@@ -434,6 +442,7 @@ void writeDecoder(int8_t decoder_i, bool p1, bool p2, bool p4, bool p8){
 
 
 void showDistance(int64_t num, bool toShowDistance){
+  // Function that shows last 7 numbers and sign(in case)
   decoder_i = 7;
   if (toShowDistance){
     if (num < 0){
@@ -454,7 +463,9 @@ void showDistance(int64_t num, bool toShowDistance){
     digitalWrite(timeInd, HIGH);
   }
   // 1, 2, 4, 8
-  while (num > 0) {
+  // decoder_i = 0 is decoder for sign lamp
+  // if num == 0 then num % 0 is 0 that is correct in any case
+  while (decoder_i > 0) {
     // Serial.println('0' + (num % 10));
     switch(num % 10){
       case 0:
@@ -490,11 +501,6 @@ void showDistance(int64_t num, bool toShowDistance){
     }
     decoder_i--;
     num /= 10;
-  }
-  // Write 0 to rest of lamps
-  while (decoder_i > 0){
-    writeDecoder(decoder_i, 0, 0, 0, 0);
-    decoder_i--;
   }
 }
 
