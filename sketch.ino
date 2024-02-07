@@ -11,10 +11,10 @@
 #define pinB_enc2 4
 #define pinReset_enc2 6
 
-#define modeButton 7
+#define modeButton 9
 
 #define distanceInd 8
-#define timeInd 9
+#define timeInd 7
 
 #define generalStartSignal 10
 #define spindelStartSignal 11
@@ -563,6 +563,10 @@ void loop() {
     }
   }
   Serial.println();
+  // if (butt == 1){
+  //   enablePCINT(digitalPinToPCINT(modeButton));
+  // }
+  // butt = 0;
   delay(60);
 }
 // TODO:

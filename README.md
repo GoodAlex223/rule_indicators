@@ -12,6 +12,7 @@
   - Present time (to check the clock module)
 - Renamed general* and spindel* variables to more appropriate
 - Added delay for modeButton interruption to avoid button rattling. Created varuable that handle previous currTime. If currTime - prev currTime >= 1 then button will change mode to next
+- Changed pins of mode button and time dot indicator. For easy soldering
 
 ## 04.02.24
 
