@@ -48,17 +48,17 @@ volatile int64_t distance = 0;
 
 // In sec
 volatile uint32_t currTime = 0;
-// max generalWorkTime and spindelWorkTime will be about 359996400 sec 
+// max motorSeconds and spindelMotorSeconds will be about 359996400 sec 
 // ("99999.00" hours to show; only for 7 lamps)
 // In sec
-volatile uint32_t generalWorkTime;
-const uint8_t generalWorkTimeAdress = 0;
-volatile bool toIncreaseGeneralWorkTime = false;
-volatile uint32_t generalPrevTime;
+volatile uint32_t motorSeconds;
+const uint8_t motorSecondsMemoryAdress = 0;
+volatile bool toIncreaseMotorSeconds = false;
+volatile uint32_t motorPrevTime;
 // In sec
-volatile uint32_t spindelWorkTime;
-const uint8_t spindelWorkTimeAdress = 4;
-volatile bool toIncreaseSpindelWorkTime = false;
+volatile uint32_t spindelMotorSeconds;
+const uint8_t spindelMotorSecondsMemoryAdress = 4;
+volatile bool toIncreaseSpindelMotorSeconds = false;
 volatile uint32_t spindelPrevTime;
 
 // To store temp values of either distance or work times
@@ -218,17 +218,20 @@ void interruptResetDISTANCE(){
   incStreak = 0;
 }
 
+
 void changeMode(){
   // change mode value to next: 0 -> 1 -> 0 -> 1...
   indicatorsModeNumber = (indicatorsModeNumber + 1) % maxIndicatorsModeNumber;
 }
 
+
 void startGeneralWorkTimeIncreasing(){
-  toIncreaseGeneralWorkTime = !toIncreaseGeneralWorkTime;
-  generalPrevTime = currTime;
+  toIncreaseMotorSeconds = !toIncreaseMotorSeconds;
+  motorPrevTime = currTime;
 }
+
 void startSpindelWorkTimeIncreasing(){
-  toIncreaseSpindelWorkTime = !toIncreaseSpindelWorkTime;
+  toIncreaseSpindelMotorSeconds = !toIncreaseSpindelMotorSeconds;
   spindelPrevTime = currTime;
 }
 
@@ -320,29 +323,28 @@ void setupPcfs() {
     Serial.println("RTC module not responsing");
     while (1);
   }
-
-  // Read saved generalWorkTime from memory
   // https://adafruit.github.io/RTClib/html/class_date_time.html#ae4629e7b2ffeac4a0c8f8c3f9c545990
   // Returns uint32_t seconds. Its ok for int64_t
   currTime = RTC.now().unixtime();
 
-  generalWorkTime = EepromRTC.readLong(generalWorkTimeAdress);
-  spindelWorkTime = EepromRTC.readLong(spindelWorkTimeAdress);
-  // 4294967295 is limit for uint32_t and for page of memory module
+  // Read saved motorSeconds from memory
+  motorSeconds = EepromRTC.readLong(motorSecondsMemoryAdress);
+  spindelMotorSeconds = EepromRTC.readLong(spindelMotorSecondsMemoryAdress);
+  // 4294967295 is limit for uint32_t and for page of memory module 24c32
   // (max page size is 4 bytes(4 * 8 = 32))
   // 359996400 is 99999 hours("99999.00" on display)
-  if (generalWorkTime > 359996400){
-    generalWorkTime = 0;
+  if (motorSeconds > 359996400){
+    motorSeconds = 0;
   }
-  if (spindelWorkTime > 359996400){
-    spindelWorkTime = 0;
+  if (spindelMotorSeconds > 359996400){
+    spindelMotorSeconds = 0;
   }
   Serial.print("Get time from RTC -- currTime: ");
   Serial.println(currTime);
-  Serial.print("Read from memory -- generalWorkTime: ");
-  Serial.println(generalWorkTime);
-  Serial.print("Read from memory -- spindelWorkTime: ");
-  Serial.println(spindelWorkTime);
+  Serial.print("Read from memory -- motorSeconds: ");
+  Serial.println(motorSeconds);
+  Serial.print("Read from memory -- spindelMotorSeconds: ");
+  Serial.println(spindelMotorSeconds);
   
   Serial.println("PCFs setupes were finished.");
 }
@@ -506,14 +508,14 @@ void loop() {
   } else if (indicatorsModeNumber == 1){
     // In C/C++, when you divide two integers, the result is also an integer. 
     // This means that the fractional part is discarded, and only the integer part is kept. 
-    // Both generalWorkTime and writeTimer are sec
-    // (generalWorkTime / 3600) is hours.
-    // Multiply by 100 to be able to concatenate minutes(1 | 2 -> 12)
+    // Both motorSeconds and writeTimer are sec
+    // (motorSeconds / 3600) is hours.
+    // Multiply by 100 to be able to concatenate minutes(1 | 22 -> 122)
     // minutes % 60 is not full hour(minutes remainder)
-    numberToShow = (generalWorkTime / 3600) * 100 + (generalWorkTime / 60) % 60;
+    numberToShow = (motorSeconds / 3600) * 100 + (motorSeconds / 60) % 60;
     showDistance(numberToShow, false);
   } else if (indicatorsModeNumber == 2){
-    numberToShow = (spindelWorkTime / 3600) * 100 + (spindelWorkTime / 60) % 60;
+    numberToShow = (spindelMotorSeconds / 3600) * 100 + (spindelMotorSeconds / 60) % 60;
     showDistance(numberToShow, false);
   }
 
@@ -527,32 +529,32 @@ void loop() {
   Serial.print(currTime);
   Serial.print(" - mode state:");
   Serial.print(indicatorsModeNumber);
-  Serial.print(" - general state:");
-  Serial.print(toIncreaseGeneralWorkTime);
-  Serial.print(" - general(sec):");
-  Serial.print(generalWorkTime);
+  Serial.print(" - motor state:");
+  Serial.print(toIncreaseMotorSeconds);
+  Serial.print(" - motorSeconds:");
+  Serial.print(motorSeconds);
   Serial.print(" - spindel state:");
-  Serial.print(toIncreaseSpindelWorkTime);
+  Serial.print(toIncreaseSpindelMotorSeconds);
   Serial.print(" - spindel(sec):");
-  Serial.print(spindelWorkTime);
+  Serial.print(spindelMotorSeconds);
 
-  // currTime and prevTime are seconds
+  // currTime and *prevTime are seconds
   // 60 is seconds
   // Wokwi timer while simulation is not correct use other
-  if (toIncreaseGeneralWorkTime){
-    if ((currTime - generalPrevTime) > 60){
-        generalWorkTime += currTime - generalPrevTime;
-        EepromRTC.writeLong(generalWorkTimeAdress, generalWorkTime);
-        generalPrevTime = currTime;
-        Serial.print(" - WROTE TO MEMORY: generalWorkTime");
+  if (toIncreaseMotorSeconds){
+    if ((currTime - motorPrevTime) > 60){
+        motorSeconds += currTime - motorPrevTime;
+        EepromRTC.writeLong(motorSecondsMemoryAdress, motorSeconds);
+        motorPrevTime = currTime;
+        Serial.print(" - WROTE TO MEMORY: motorSeconds");
       }
   }
-  if (toIncreaseSpindelWorkTime){
+  if (toIncreaseSpindelMotorSeconds){
     if ((currTime - spindelPrevTime) > 60){
-      spindelWorkTime += currTime - spindelPrevTime;
-      EepromRTC.writeLong(spindelWorkTimeAdress, spindelWorkTime);
+      spindelMotorSeconds += currTime - spindelPrevTime;
+      EepromRTC.writeLong(spindelMotorSecondsMemoryAdress, spindelMotorSeconds);
       spindelPrevTime = currTime;
-      Serial.print(" - WROTE TO MEMORY: spindelWorkTime");
+      Serial.print(" - WROTE TO MEMORY: spindelMotorSeconds");
     }
   }
   Serial.println();

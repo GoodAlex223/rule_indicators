@@ -10,6 +10,7 @@
     - spindel button
     - mode button
   - Present time (to check the clock module)
+- Renamed general* and spindel* variables to more appropriate
 
 ## 04.02.24
 
