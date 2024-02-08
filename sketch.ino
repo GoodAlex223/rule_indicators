@@ -35,36 +35,21 @@
 const int8_t STEP = 1;
 volatile bool StateA_enc1, StateB_enc1;
 volatile bool StateA_enc2, StateB_enc2;
-// int8_t is enought for incStreak. If it turns negative it will add only 1
-// volatile int8_t incStreak = 0; // used for step increasing during several consecutive scrolls of the second encoder
-volatile int8_t incStreak = 0; // used for step increasing during several consecutive scrolls of the second encoder
-volatile int64_t incStep; // save previous step to detect when increase the streak
-int8_t decoder_i;
-// volatile bool isMinus;
-// char tempString[9];
+
 // The distance covered by the ruler
 // at startup 0
 volatile int64_t distance = 0;
+// int8_t is enought for distanceIncStreak. If it turns negative it will add only 1
+// volatile int8_t distanceIncStreak = 0; // used for step increasing during several consecutive scrolls of the second encoder
+volatile int8_t distanceIncStreak = 0; // used for step increasing during several consecutive scrolls of the second encoder
+volatile int64_t prevDistanceIncStep; // save previous step to detect when increase the streak
 
-// In sec
-volatile uint32_t currTime = 0;
-volatile uint32_t prevModeButtonInterTime = 0;
-// max motorSeconds and spindelMotorSeconds will be about 359996400 sec 
-// ("99999.00" hours to show; only for 7 lamps)
-// In sec
-uint32_t motorSeconds;
-const uint8_t motorSecondsMemoryAdress = 0;
-volatile bool toIncreaseMotorSeconds = false;
-volatile uint32_t motorPrevTime;
-// In sec
-uint32_t spindelMotorSeconds;
-const uint8_t spindelMotorSecondsMemoryAdress = 4;
-volatile bool toIncreaseSpindelMotorSeconds = false;
-volatile uint32_t spindelPrevTime;
 
+int8_t decoder_i;
 // To store temp values of either distance or work times
 // Used int64_t type to include int32_t and below and uint32_t and below
 int64_t numberToShow;
+
 
 // Store current indicators mode
 volatile int8_t indicatorsModeNumber = 0;  // int8_t: max values are -128 and 127
@@ -72,6 +57,31 @@ volatile int8_t indicatorsModeNumber = 0;  // int8_t: max values are -128 and 12
 // indicatorsModeNumber = indicatorsModeNumber + 1 % maxIndicatorsModeNumber
 // 0 -> 1 -> 2 -> 0...
 const int8_t maxIndicatorsModeNumber = 3;
+
+// In sec
+volatile uint32_t currTime = 0;
+volatile uint32_t prevModeButtonInterTime = 0;
+
+// max motorSeconds and spindelMotorSeconds will be about 359999999 sec 
+// ("99999.59" hours to show; only for 7 lamps)
+// In sec
+uint32_t motorSeconds;
+const uint8_t motorSecondsMemoryAdress = 0;
+volatile bool toIncreaseMotorSeconds = false;
+volatile uint32_t motorPrevTime;
+//
+volatile uint8_t motorIncStreak = 0;
+volatile int64_t prevMotorIncStep;
+
+// In sec
+uint32_t spindelMotorSeconds;
+const uint8_t spindelMotorSecondsMemoryAdress = 4;
+volatile bool toIncreaseSpindelMotorSeconds = false;
+volatile uint32_t spindelPrevTime;
+//
+volatile uint8_t spindelIncStreak = 0;
+volatile int64_t prevSpindelIncStep;
+
 
 // Expanders: PCF8574AP(https://www.nxp.com/docs/en/data-sheet/PCF8574_PCF8574A.pdf)
 // Default pins A4-SDA, A5-SCL
@@ -98,57 +108,11 @@ RTC_DS1307 RTC;
 AT24C32 EepromRTC(0x50);
 
 
+
 void safeDistanceIncrease(int64_t increaseStep){
   // DO NOT PASS increaseStep above increaseStep_type_int_limit - 9999999(for 7 lamps) 
   // as it change distance to negative
-
-  // Do not increase or decrease distance above or below 9999.999
-  // because of 8 lamp limit
-  // if ((distance + increaseStep) > 9999.999){
-  //   distance = 9999.999;
-  // } else if ((distance + increaseStep) < -9999.999) {
-  //   distance = -9999.999;
-  // } else {
-  //   distance = distance + increaseStep;
-  // }
   distance = max(min(distance + increaseStep, 9999999), -9999999);
-  // if (abs(distance + increaseStep) > 9999999){
-  //   distance = 9999999 * (pow(-1, (distance < 0)));
-  // } else {
-  //   distance += increaseStep;
-  // }
-}
-
-
-void increaseDistance_enc2(int8_t step){
-    // int8_t is enought for incStreak. If it turns negative it will add only 1
-    // if inc direction do not changes, increase streak by 1, else reset
-    if (incStep == step){
-      // set limit incStreak
-      incStreak = min(incStreak + 1, 70);
-    } else {
-      incStreak = 0;
-    }
-    incStep = step;
-    // Changing distance with new increase step values. 
-    // All limits in states and multiplying of step are random numbers and can be adjusted
-    if (10 > incStreak){
-      safeDistanceIncrease(incStep);
-    } else if (20 > incStreak){ // 10, 20, 30 are random nums
-      safeDistanceIncrease(incStep * 10);
-    } else if (30 > incStreak){
-      safeDistanceIncrease(incStep * 100);
-    } else if (40 > incStreak){
-      safeDistanceIncrease(incStep * 1000);
-    } else if (50 > incStreak){
-      safeDistanceIncrease(incStep * 10000);
-    } else if (60 > incStreak){
-      safeDistanceIncrease(incStep * 100000);
-    } else {
-      // Multilying more then 1000000 require int64_t or long or even more 
-      // for incStep and distance
-      safeDistanceIncrease(incStep * 1000000);
-    }
 }
 
 
@@ -163,7 +127,7 @@ void interruptChannelA_enc1() {
   } else {
     safeDistanceIncrease(-STEP);
   }
-  incStreak = 0;
+  distanceIncStreak = 0;
 }
 
 
@@ -178,7 +142,134 @@ void interruptChannelB_enc1() {
   } else {
     safeDistanceIncrease(-STEP);
   }
-  incStreak = 0;
+  distanceIncStreak = 0;
+}
+
+
+uint32_t increaseHours(uint32_t timer, int32_t increaseStepSeconds){
+  // 359999999 seconds or "99999.59" on display
+  // Allow to increase/decrease circle
+  if (increaseStepSeconds < 0 && -timer < increaseStepSeconds){
+    return 0;
+  }
+  else
+  {
+    return min(increaseStepSeconds + timer, 359999999);
+  }
+}
+
+
+void changeIncStreak(uint8_t mode, int8_t step){
+  // int8_t is enought for increase streak. If it turns negative it will add only 1
+  // if inc direction do not changes, increase streak by 1, else reset
+  switch (mode) {
+  case 0:
+    if (prevDistanceIncStep == step){
+      // set limit distanceIncStreak
+      distanceIncStreak = min(distanceIncStreak + 1, 70);
+    } else {
+      distanceIncStreak = 0;
+    }
+    prevDistanceIncStep = step;
+    break;
+
+  case 1:
+    if (prevMotorIncStep == step){
+      // set limit for increase streak
+      motorIncStreak = min(motorIncStreak + 1, 70);
+    } else {
+      motorIncStreak = 0;
+    }
+    prevMotorIncStep = step;
+    break;
+
+  case 2:
+    if (prevSpindelIncStep == step){
+      // set limit for increase streak
+      spindelIncStreak = min(spindelIncStreak + 1, 70);
+    } else {
+      spindelIncStreak = 0;
+    }
+    prevSpindelIncStep = step;
+    break;
+  }
+}
+
+
+void changeValue(uint8_t mode, int64_t step){
+  switch (mode){
+  case 0:
+    // Changing distance with new increase step values. 
+    // All limits in states and multiplying of step are random numbers and can be adjusted
+    if (10 > distanceIncStreak){
+      safeDistanceIncrease(prevDistanceIncStep);
+    } else if (20 > distanceIncStreak){ // 10, 20, 30 are random nums
+      safeDistanceIncrease(prevDistanceIncStep * 10);
+    } else if (30 > distanceIncStreak){
+      safeDistanceIncrease(prevDistanceIncStep * 100);
+    } else if (40 > distanceIncStreak){
+      safeDistanceIncrease(prevDistanceIncStep * 1000);
+    } else if (50 > distanceIncStreak){
+      safeDistanceIncrease(prevDistanceIncStep * 10000);
+    } else if (60 > distanceIncStreak){
+      safeDistanceIncrease(prevDistanceIncStep * 100000);
+    } else {
+      // Multilying more then 1000000 require int64_t or long or even more 
+      // for prevDistanceIncStep and distance
+      safeDistanceIncrease(prevDistanceIncStep * 1000000);
+    }
+    break;
+
+  case 1:
+    // Changing distance with new increase step values. 
+    // All limits in states and multiplying of step are random numbers and can be adjusted
+    // 10, 20, 30 are random nums
+    // max increaseStepSeconds is 2^31 - 1 = +-2147483647
+    if (10 > motorIncStreak){
+      motorSeconds = increaseHours(motorSeconds, prevMotorIncStep);
+    } else if (20 > motorIncStreak){
+      motorSeconds = increaseHours(motorSeconds, prevMotorIncStep * 10);
+    } else if (30 > motorIncStreak){
+      motorSeconds = increaseHours(motorSeconds, prevMotorIncStep * 100);
+    } else if (40 > motorIncStreak){
+      motorSeconds = increaseHours(motorSeconds, prevMotorIncStep * 1000);
+    } else if (50 > motorIncStreak){
+      motorSeconds = increaseHours(motorSeconds, prevMotorIncStep * 10000);
+    } else if (60 > motorIncStreak){
+      motorSeconds = increaseHours(motorSeconds, prevMotorIncStep * 100000);
+    } else {
+      motorSeconds = increaseHours(motorSeconds, prevMotorIncStep * 1000000);
+    }
+    break;
+
+  case 2:
+    // Changing distance with new increase step values.
+    // All limits in states and multiplying of step are random numbers and can be adjusted
+    // 10, 20, 30 are random nums
+    // max increaseStepSeconds is 2^31 - 1 = +-2147483647
+    if (10 > spindelIncStreak){
+      spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep);
+    } else if (20 > spindelIncStreak){
+      spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep * 10);
+    } else if (30 > spindelIncStreak){
+      spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep * 100);
+    } else if (40 > spindelIncStreak){
+      spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep * 1000);
+    } else if (50 > spindelIncStreak){
+      spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep * 10000);
+    } else if (60 > spindelIncStreak){
+      spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep * 100000);
+    } else {
+      spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep * 1000000);
+    }
+    break;
+  }
+}
+
+
+void changeValuesToShow(int8_t step, uint8_t mode){
+  changeIncStreak(mode, step);
+  changeValue(mode, step);
 }
 
 
@@ -188,12 +279,25 @@ void interruptChannelA_enc2() {
   StateA_enc2 = !StateA_enc2;
   // StateA = digitalRead(3);
   // adjust the coordinate
-  if (StateA_enc2 != StateB_enc2){
-    // safeDistanceIncrease(STEP);
-    increaseDistance_enc2(STEP);
-  } else {
-    // safeDistanceIncrease(-STEP);
-    increaseDistance_enc2(-STEP);
+  switch (indicatorsModeNumber)
+  {
+  case 0:
+    if (StateA_enc2 != StateB_enc2){
+      changeValuesToShow(STEP, indicatorsModeNumber);
+      // increaseDistance_enc2(STEP);
+    } else {
+      changeValuesToShow(-STEP, indicatorsModeNumber);
+      // increaseDistance_enc2(-STEP);
+    }
+    break;
+  case 1:
+  case 2:
+    if (StateA_enc2 != StateB_enc2){
+      changeValuesToShow(1, indicatorsModeNumber);
+    } else {
+      changeValuesToShow(-1, indicatorsModeNumber);
+    }
+    break;
   }
 }
 
@@ -204,26 +308,39 @@ void interruptChannelB_enc2() {
   StateB_enc2 = !StateB_enc2;
   // StateB = digitalRead(2);
   // adjust the coordinate
-  if (StateA_enc2 == StateB_enc2){
-    // safeDistanceIncrease(STEP);
-    increaseDistance_enc2(STEP);
-  } else {
-    // safeDistanceIncrease(-STEP);
-    increaseDistance_enc2(-STEP);
+  switch (indicatorsModeNumber)
+  {
+  case 0:
+    if (StateA_enc2 == StateB_enc2){
+      changeValuesToShow(STEP, indicatorsModeNumber);
+      // increaseDistance_enc2(STEP);
+    } else {
+      changeValuesToShow(-STEP, indicatorsModeNumber);
+      // increaseDistance_enc2(-STEP);
+    }
+    break;
+  case 1:
+  case 2:
+    if (StateA_enc2 == StateB_enc2){
+      changeValuesToShow(1, indicatorsModeNumber);
+    } else {
+      changeValuesToShow(-1, indicatorsModeNumber);
+    }
+    break;
   }
 }
 
 
-void interruptResetDISTANCE(){
+void buttonEnc2(){
   distance = 0;
-  incStreak = 0;
+  distanceIncStreak = 0;
 }
 
-// bool butt = 0;
 
 void changeMode(){
   // 1 sec delay to avoid button rattle
   if (currTime - prevModeButtonInterTime >= 1){
+    // disablePCINT(digitalPinToPCINT(modeButton));
     // change mode value to next: 0 -> 1 -> 0 -> 1...
     indicatorsModeNumber = (indicatorsModeNumber + 1) % maxIndicatorsModeNumber;
     prevModeButtonInterTime = currTime;
@@ -231,12 +348,12 @@ void changeMode(){
 }
 
 
-void changeMotorSecondsIncreasing(){
+void changeMotorSecondsIncreasingState(){
   toIncreaseMotorSeconds = !toIncreaseMotorSeconds;
   motorPrevTime = currTime;
 }
 
-void changeSpindelMotorSecondsIncreasing(){
+void changeSpindelMotorSecondsIncreasingState(){
   toIncreaseSpindelMotorSeconds = !toIncreaseSpindelMotorSeconds;
   spindelPrevTime = currTime;
 }
@@ -338,11 +455,11 @@ void setupPcfs() {
   spindelMotorSeconds = EepromRTC.readLong(spindelMotorSecondsMemoryAdress);
   // 4294967295 is limit for uint32_t and for page of memory module 24c32
   // (max page size is 4 bytes(4 * 8 = 32))
-  // 359996400 is 99999 hours("99999.00" on display)
-  if (motorSeconds > 359996400){
+  // 359999999 is 99999 hours("99999.59" on display)
+  if (motorSeconds > 359999999){
     motorSeconds = 0;
   }
-  if (spindelMotorSeconds > 359996400){
+  if (spindelMotorSeconds > 359999999){
     spindelMotorSeconds = 0;
   }
   Serial.print("Get time from RTC -- currTime: ");
@@ -390,12 +507,12 @@ void setup() {
   // Enable interrupt B_enc2
   attachPCINT(digitalPinToPCINT(pinB_enc2), interruptChannelB_enc2, CHANGE);
   // Enable interrupt reset_enc2
-  attachPCINT(digitalPinToPCINT(pinReset_enc2), interruptResetDISTANCE, RISING);
+  attachPCINT(digitalPinToPCINT(pinReset_enc2), buttonEnc2, RISING);
 
   attachPCINT(digitalPinToPCINT(modeButton), changeMode, RISING);
 
-  attachPCINT(digitalPinToPCINT(generalStartSignal), changeMotorSecondsIncreasing, CHANGE);
-  attachPCINT(digitalPinToPCINT(spindelStartSignal), changeSpindelMotorSecondsIncreasing, CHANGE);
+  attachPCINT(digitalPinToPCINT(generalStartSignal), changeMotorSecondsIncreasingState, CHANGE);
+  attachPCINT(digitalPinToPCINT(spindelStartSignal), changeSpindelMotorSecondsIncreasingState, CHANGE);
 
   // Initialization of global variables
   StateA_enc1 = digitalRead(pinA_enc1);
@@ -548,7 +665,7 @@ void loop() {
   // Wokwi timer while simulation is not correct use other
   if (toIncreaseMotorSeconds){
     if ((currTime - motorPrevTime) > 60){
-        motorSeconds += currTime - motorPrevTime;
+        motorSeconds = min(motorSeconds + currTime - motorPrevTime, 359999999);
         EepromRTC.writeLong(motorSecondsMemoryAdress, motorSeconds);
         motorPrevTime = currTime;
         Serial.print(" - WROTE TO MEMORY: motorSeconds");
@@ -556,7 +673,7 @@ void loop() {
   }
   if (toIncreaseSpindelMotorSeconds){
     if ((currTime - spindelPrevTime) > 60){
-      spindelMotorSeconds += currTime - spindelPrevTime;
+      spindelMotorSeconds = min(spindelMotorSeconds + currTime - spindelPrevTime, 359999999);
       EepromRTC.writeLong(spindelMotorSecondsMemoryAdress, spindelMotorSeconds);
       spindelPrevTime = currTime;
       Serial.print(" - WROTE TO MEMORY: spindelMotorSeconds");

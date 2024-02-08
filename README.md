@@ -1,5 +1,10 @@
 # Changes
 
+## 08.02.24
+
+- Added seconds changing for timers by second rotator. Used the same logic as for distance changing by second rotator
+- Added max and min values for timers. min is 0 and max is 359999999("99999.99" on display)
+
 ## 07.02.24
 
 - Number showing logic: removed unnecessary code for 0 showing. Changed while state, so now while decoder_i > 0 loop will be worked for showing numbers. In case of number of digits is more then 7, only last 7 digits will be shown
@@ -25,7 +30,6 @@
 - Removed unnecessary variables
 - Added some debug prints and usefull coments
 - Added full wokwi project code
-
 
 ## 03.02.24
 
