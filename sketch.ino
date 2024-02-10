@@ -56,7 +56,7 @@ volatile int8_t indicatorsModeNumber = 0;  // int8_t: max values are -128 and 12
 // Loop from one state to another:
 // indicatorsModeNumber = indicatorsModeNumber + 1 % maxIndicatorsModeNumber
 // 0 -> 1 -> 2 -> 0...
-const int8_t maxIndicatorsModeNumber = 3;
+const int8_t maxIndicatorsModeNumber = 4;
 
 // In sec
 volatile uint32_t currTime = 0;
@@ -148,8 +148,8 @@ void interruptChannelB_enc1() {
 
 uint32_t increaseHours(uint32_t timer, int32_t increaseStepSeconds){
   // 359999999 seconds or "99999.59" on display
-  // Allow to increase/decrease circle
-  if (increaseStepSeconds < 0 && -timer < increaseStepSeconds){
+  // This is done to not do substruction from minuend(uint32_t) that is less then subtrahend
+  if (increaseStepSeconds < 0 && -increaseStepSeconds > timer){
     return 0;
   }
   else
@@ -442,10 +442,12 @@ void setupPcfs() {
   }
   PCF3.write8(0);
 
-  if (!RTC.begin()) {
+  RTC.begin();
+  if (!RTC.isrunning()) {
     Serial.println("RTC module not responsing");
     while (1);
   }
+  RTC.adjust(DateTime(__DATE__, __TIME__));
   // https://adafruit.github.io/RTClib/html/class_date_time.html#ae4629e7b2ffeac4a0c8f8c3f9c545990
   // Returns uint32_t seconds. Its ok for int64_t
   currTime = RTC.now().unixtime();
@@ -559,26 +561,52 @@ void writeDecoder(int8_t decoder_i, bool p1, bool p2, bool p4, bool p8){
 }
 
 
-void showDistance(int64_t num, bool toShowDistance){
+void showNumber(int64_t num, int8_t mode){
   // Function that shows last 7 numbers and sign(in case)
   decoder_i = 7;
-  if (toShowDistance){
-    if (num < 0){
-      PCF0.write(0, LOW); // 1
-      PCF0.write(1, HIGH); // 2
-      // while function works only with num > 0
-      num = -num;
-    } else {
+  switch (mode)
+  {
+  case 0:
+    if (num > 0){
       PCF0.write(0, HIGH); // 1
       PCF0.write(1, LOW); // 2
+      PCF0.write(2, LOW); // 4
+      PCF0.write(3, LOW); // 8
+    } else {
+      PCF0.write(0, LOW); // 1
+      PCF0.write(1, HIGH); // 2
+      PCF0.write(2, LOW); // 4
+      PCF0.write(3, LOW); // 8
+      // while function works only with num > 0
+      num = -num;
     }
     digitalWrite(distanceInd, HIGH);
     digitalWrite(timeInd, LOW);
-  } else {
+    break;
+  case 1:
     PCF0.write(0, LOW); // 1
     PCF0.write(1, LOW); // 2
+    PCF0.write(2, HIGH); // 4
+    PCF0.write(3, LOW); // 8
     digitalWrite(distanceInd, LOW);
     digitalWrite(timeInd, HIGH);
+    break;
+  case 2:
+    PCF0.write(0, LOW); // 1
+    PCF0.write(1, LOW); // 2
+    PCF0.write(2, LOW); // 4
+    PCF0.write(3, HIGH); // 8
+    digitalWrite(distanceInd, LOW);
+    digitalWrite(timeInd, HIGH);
+    break;
+  case 3:
+    PCF0.write(0, LOW); // 1
+    PCF0.write(1, LOW); // 2
+    PCF0.write(2, LOW); // 4
+    PCF0.write(3, LOW); // 8
+    digitalWrite(distanceInd, LOW);
+    digitalWrite(timeInd, HIGH);
+    break;
   }
   // 1, 2, 4, 8
   // decoder_i = 0 is decoder for sign lamp
@@ -624,10 +652,16 @@ void showDistance(int64_t num, bool toShowDistance){
 
 
 void loop() {
-  if (indicatorsModeNumber == 0){
+  // Do not increase work times by delay_value because interruptions additionally take some time
+  // so time increases not only after delay
+  currTime = RTC.now().unixtime();
+
+  switch (indicatorsModeNumber)
+  {
+  case 0:
     numberToShow = distance;
-    showDistance(numberToShow, true);
-  } else if (indicatorsModeNumber == 1){
+    break;
+  case 1:
     // In C/C++, when you divide two integers, the result is also an integer. 
     // This means that the fractional part is discarded, and only the integer part is kept. 
     // Both motorSeconds and writeTimer are sec
@@ -635,15 +669,23 @@ void loop() {
     // Multiply by 100 to be able to concatenate minutes(1 | 22 -> 122)
     // minutes % 60 is not full hour(minutes remainder)
     numberToShow = (motorSeconds / 3600) * 100 + (motorSeconds / 60) % 60;
-    showDistance(numberToShow, false);
-  } else if (indicatorsModeNumber == 2){
+    break;
+  case 2:
     numberToShow = (spindelMotorSeconds / 3600) * 100 + (spindelMotorSeconds / 60) % 60;
-    showDistance(numberToShow, false);
+    break;
+  case 3:
+    // hours|minutes|seconds -> 11|23|45 -> 112345
+    // currTime / 60 / 60 % 24 - rest of hours
+    // currTime / 60 % 60      - rest of minutes
+    // currTime % 3600         - rest of seconds
+    // currTime % 60 % 60 and currTime % 3600 have different results
+    // (((currTime / 3600) % 24) +2) and ((currTime / 3600) % 24 +2) have different results
+    // +2 is UTC+2(insert time offset of device location)
+    numberToShow = (((currTime / 3600) % 24) +2) * 10000 + ((currTime / 60) % 60) * 100 + currTime % 60 % 60;
+    break;
   }
 
-  // Do not increase worktime by delay_value because interruptions additionally take some time
-  // so time increases not only after delay
-  currTime = RTC.now().unixtime();
+  showNumber(numberToShow, indicatorsModeNumber);
 
   Serial.print("mms:");
   print_int64_t(distance);
@@ -660,7 +702,7 @@ void loop() {
   Serial.print(" - spindel(sec):");
   Serial.print(spindelMotorSeconds);
 
-  // currTime and *prevTime are seconds
+  // currTime and *PrevTime are seconds
   // 60 is seconds
   // Wokwi timer while simulation is not correct use other
   if (toIncreaseMotorSeconds){

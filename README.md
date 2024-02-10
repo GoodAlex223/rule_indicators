@@ -1,5 +1,11 @@
 # Changes
 
+## 10.02.24
+
+- In mods 2 and 3 (hours) you turned on p2 and p3 respectively on decoder 0. For better definition of millimeters, motor hours and spindle hours.
+- Fixed timers changing logic. It was bug that zeroing timer when it is needed to decrease time
+- Make a 4th mode of viewing to display current time formatted as hoursminutesseconds
+
 ## 08.02.24
 
 - Added seconds changing for timers by second rotator. Used the same logic as for distance changing by second rotator
