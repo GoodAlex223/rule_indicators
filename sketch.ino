@@ -401,7 +401,7 @@ void print_int64_t(int64_t num) {
 }
 
 
-void setupPcfs() {
+void setupModules() {
   Serial.println("PCFs setupes started");
 
   // Check for correct address of connected PCF
@@ -447,7 +447,10 @@ void setupPcfs() {
     Serial.println("RTC module not responsing");
     while (1);
   }
-  RTC.adjust(DateTime(__DATE__, __TIME__));
+  // https://forum.arduino.cc/t/why-my-rtc-module-is-not-keeping-time/1000098
+  // Run only once to setup RTC
+  // RTC.adjust(DateTime(__DATE__, __TIME__));
+
   // https://adafruit.github.io/RTClib/html/class_date_time.html#ae4629e7b2ffeac4a0c8f8c3f9c545990
   // Returns uint32_t seconds. Its ok for int64_t
   currTime = RTC.now().unixtime();
@@ -480,7 +483,7 @@ void setup() {
 
   Serial.println("Setup started");
 
-  setupPcfs();
+  setupModules();
 
   // Serial.begin(9600);
   // Encoder 1
@@ -562,8 +565,6 @@ void writeDecoder(int8_t decoder_i, bool p1, bool p2, bool p4, bool p8){
 
 
 void showNumber(int64_t num, int8_t mode){
-  // Function that shows last 7 numbers and sign(in case)
-  decoder_i = 7;
   switch (mode)
   {
   case 0:
@@ -608,6 +609,8 @@ void showNumber(int64_t num, int8_t mode){
     digitalWrite(timeInd, HIGH);
     break;
   }
+  // Function that shows last 7 numbers and sign(in case)
+  decoder_i = 7;
   // 1, 2, 4, 8
   // decoder_i = 0 is decoder for sign lamp
   // if num == 0 then num % 0 is 0 that is correct in any case
@@ -680,8 +683,7 @@ void loop() {
     // currTime % 3600         - rest of seconds
     // currTime % 60 % 60 and currTime % 3600 have different results
     // (((currTime / 3600) % 24) +2) and ((currTime / 3600) % 24 +2) have different results
-    // +2 is UTC+2(insert time offset of device location)
-    numberToShow = (((currTime / 3600) % 24) +2) * 10000 + ((currTime / 60) % 60) * 100 + currTime % 60 % 60;
+    numberToShow = ((currTime / 3600) % 24) * 10000 + ((currTime / 60) % 60) * 100 + currTime % 60 % 60;
     break;
   }
 
@@ -704,7 +706,7 @@ void loop() {
 
   // currTime and *PrevTime are seconds
   // 60 is seconds
-  // Wokwi timer while simulation is not correct use other
+  // Wokwi timer while simulation is not correct, use other
   if (toIncreaseMotorSeconds){
     if ((currTime - motorPrevTime) > 60){
         motorSeconds = min(motorSeconds + currTime - motorPrevTime, 359999999);

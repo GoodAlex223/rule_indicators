@@ -1,14 +1,19 @@
 # Changes
 
+## 11.02.24
+
+- Fixed incorrect time for RTC. Incorrect time was a result of adjusting RTC with time of compiling of code. This is need to be done only once. https://forum.arduino.cc/t/why-my-rtc-module-is-not-keeping-time/1000098 
+
 ## 10.02.24
 
-- In mods 2 and 3 (hours) you turned on p2 and p3 respectively on decoder 0. For better definition of millimeters, motor hours and spindle hours.
+- In mods 2 and 3 (motor hours) turned on p2 and p3 respectively on decoder 0(first lamp). For better definition of millimeters, motor hours and spindle hours.
 - Fixed timers changing logic. It was bug that zeroing timer when it is needed to decrease time
-- Make a 4th mode of viewing to display current time formatted as hoursminutesseconds
+- Made a 4th mode of viewing to display current time formatted as hoursminutesseconds
+- Renamed setupPCFs to setupModules
 
 ## 08.02.24
 
-- Added seconds changing for timers by second rotator. Used the same logic as for distance changing by second rotator
+- Added seconds changing for timers by 2nd rotator. Used the same logic as for distance changing by 2nd rotator
 - Added max and min values for timers. min is 0 and max is 359999999("99999.99" on display)
 
 ## 07.02.24
