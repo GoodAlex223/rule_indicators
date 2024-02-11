@@ -4,6 +4,13 @@
 #include "AT24CX.h"
 // Replace "AT24CX.h" with <AT24CX.h>(add as library)
 
+// Installation, description, connecting -- https://randomnerdtutorials.com/guide-for-ds18b20-temperature-sensor-with-arduino/
+// https://github.com/milesburton/Arduino-Temperature-Control-Library/tree/master
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+
+
 #define pinA_enc1 3
 #define pinB_enc1 2
 
@@ -11,13 +18,18 @@
 #define pinB_enc2 4
 #define pinReset_enc2 6
 
-#define modeButton 9
-
-#define distanceInd 8
 #define timeInd 7
+#define distanceInd 8
+
+#define modeButton 9
 
 #define generalStartSignal 10
 #define spindelStartSignal 11
+
+// Data wire is plugged into port 12 on the Arduino
+#define ONE_WIRE_BUS 12
+
+
 
 // max number uint8_t 2^8 - 1 = 255
 // max number uint16_t 2^16 - 1 = 65535
@@ -31,7 +43,6 @@
 // 
 // max numbers(in 32x systems) long 2^31 - 1 = 2147483647
 // max numbers(in 64x systems) long 2^63 - 1 = 9223372036854775807
-
 const int8_t STEP = 1;
 volatile bool StateA_enc1, StateB_enc1;
 volatile bool StateA_enc2, StateB_enc2;
@@ -44,19 +55,17 @@ volatile int64_t distance = 0;
 volatile int8_t distanceIncStreak = 0; // used for step increasing during several consecutive scrolls of the second encoder
 volatile int64_t prevDistanceIncStep; // save previous step to detect when increase the streak
 
-
 int8_t decoder_i;
 // To store temp values of either distance or work times
 // Used int64_t type to include int32_t and below and uint32_t and below
 int64_t numberToShow;
 
-
 // Store current indicators mode
 volatile int8_t indicatorsModeNumber = 0;  // int8_t: max values are -128 and 127
 // Loop from one state to another:
 // indicatorsModeNumber = indicatorsModeNumber + 1 % maxIndicatorsModeNumber
-// 0 -> 1 -> 2 -> 0...
-const int8_t maxIndicatorsModeNumber = 4;
+// 0 -> 1 -> 2 -> ... -> maxIndicatorsModeNumber-1 -> 0 -> 1 -> ...
+const int8_t maxIndicatorsModeNumber = 5;
 
 // In sec
 volatile uint32_t currTime = 0;
@@ -82,6 +91,8 @@ volatile uint32_t spindelPrevTime;
 volatile uint8_t spindelIncStreak = 0;
 volatile int64_t prevSpindelIncStep;
 
+//
+int32_t temperature;
 
 // Expanders: PCF8574AP(https://www.nxp.com/docs/en/data-sheet/PCF8574_PCF8574A.pdf)
 // Default pins A4-SDA, A5-SCL
@@ -106,6 +117,13 @@ PCF8574 PCF3(0x3B); // bin: 0b00111011
 RTC_DS1307 RTC;
 
 AT24C32 EepromRTC(0x50);
+
+// Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+OneWire oneWire(ONE_WIRE_BUS);
+// Pass our oneWire reference to Dallas Temperature.
+DallasTemperature SENSORS(&oneWire);
+// arrays to hold device addresses
+DeviceAddress DSAddress;
 
 
 
@@ -401,9 +419,92 @@ void print_int64_t(int64_t num) {
 }
 
 
-void setupModules() {
-  Serial.println("PCFs setupes started");
+void setupTemperatureModules(){
+  Serial.println("Temperature modules setupes started.");
 
+  // Setup temperature sensor
+  // Start up the library
+  // locate devices on the bus
+  Serial.print("Locating devices...");
+  SENSORS.begin();
+
+  Serial.print("Found ");
+  Serial.print(SENSORS.getDeviceCount(), DEC);
+  Serial.println(" devices.");
+
+  // report parasite power requirements
+  Serial.print("Parasite power is: ");
+  if (SENSORS.isParasitePowerMode()){
+    Serial.println("ON");
+  } else {
+    Serial.println("OFF");
+  }
+  if (!SENSORS.getAddress(DSAddress, 0)){
+    Serial.println("Unable to find address for Device 0");
+    while(1);
+  }
+  // show the addresses we found on the bus
+  Serial.print("Device 0 Address: ");
+  for (uint8_t i = 0; i < 8; i++)
+  {
+    if (DSAddress[i] < 16) Serial.print("0");
+    Serial.print(DSAddress[i], HEX);
+  }
+  Serial.println();
+
+  // set the resolution to 9 bit (Each Dallas/Maxim device is capable of several different resolutions)
+  SENSORS.setResolution(DSAddress, 9);
+
+  Serial.print("Device 0 Resolution: ");
+  Serial.print(SENSORS.getResolution(DSAddress), DEC);
+  Serial.println();
+
+  Serial.println("Temperature modules setupes were finished.");
+}
+
+
+void setupRTCModule(){
+  Serial.println("RTC setupes started.");
+
+  // Setup real time clock
+  RTC.begin();
+  if (!RTC.isrunning()) {
+    Serial.println("RTC module not responsing");
+    while (1);
+  }
+  // https://forum.arduino.cc/t/why-my-rtc-module-is-not-keeping-time/1000098
+  // Run only once to setup RTC
+  // RTC.adjust(DateTime(__DATE__, __TIME__));
+
+  // https://adafruit.github.io/RTClib/html/class_date_time.html#ae4629e7b2ffeac4a0c8f8c3f9c545990
+  // Returns uint32_t seconds. Its ok for int64_t
+  currTime = RTC.now().unixtime();
+
+  // Read saved motorSeconds from memory
+  motorSeconds = EepromRTC.readLong(motorSecondsMemoryAdress);
+  spindelMotorSeconds = EepromRTC.readLong(spindelMotorSecondsMemoryAdress);
+  // 4294967295 is limit for uint32_t and for page of memory module 24c32
+  // (max page size is 4 bytes(4 * 8 = 32))
+  // 359999999 is 99999 hours("99999.59" on display)
+  if (motorSeconds > 359999999){
+    motorSeconds = 0;
+  }
+  if (spindelMotorSeconds > 359999999){
+    spindelMotorSeconds = 0;
+  }
+  Serial.print("Get time from RTC -- currTime: ");
+  Serial.println(currTime);
+  Serial.print("Read from memory -- motorSeconds: ");
+  Serial.println(motorSeconds);
+  Serial.print("Read from memory -- spindelMotorSeconds: ");
+  Serial.println(spindelMotorSeconds);
+
+  Serial.println("RTC setupes were finished.");
+}
+
+void setupPCFsExpanders(){
+  Serial.println("PCFs setupes started.");
+  // Setup all PCFs
   // Check for correct address of connected PCF
   if (!PCF0.begin()) {
     Serial.println("PCF0 Chip not responding.");
@@ -441,40 +542,17 @@ void setupModules() {
     while (1);
   }
   PCF3.write8(0);
-
-  RTC.begin();
-  if (!RTC.isrunning()) {
-    Serial.println("RTC module not responsing");
-    while (1);
-  }
-  // https://forum.arduino.cc/t/why-my-rtc-module-is-not-keeping-time/1000098
-  // Run only once to setup RTC
-  // RTC.adjust(DateTime(__DATE__, __TIME__));
-
-  // https://adafruit.github.io/RTClib/html/class_date_time.html#ae4629e7b2ffeac4a0c8f8c3f9c545990
-  // Returns uint32_t seconds. Its ok for int64_t
-  currTime = RTC.now().unixtime();
-
-  // Read saved motorSeconds from memory
-  motorSeconds = EepromRTC.readLong(motorSecondsMemoryAdress);
-  spindelMotorSeconds = EepromRTC.readLong(spindelMotorSecondsMemoryAdress);
-  // 4294967295 is limit for uint32_t and for page of memory module 24c32
-  // (max page size is 4 bytes(4 * 8 = 32))
-  // 359999999 is 99999 hours("99999.59" on display)
-  if (motorSeconds > 359999999){
-    motorSeconds = 0;
-  }
-  if (spindelMotorSeconds > 359999999){
-    spindelMotorSeconds = 0;
-  }
-  Serial.print("Get time from RTC -- currTime: ");
-  Serial.println(currTime);
-  Serial.print("Read from memory -- motorSeconds: ");
-  Serial.println(motorSeconds);
-  Serial.print("Read from memory -- spindelMotorSeconds: ");
-  Serial.println(spindelMotorSeconds);
   
   Serial.println("PCFs setupes were finished.");
+}
+
+
+void setupModules() {
+  Serial.println("Modules setupes started");
+  setupPCFsExpanders();
+  setupRTCModule();
+  setupTemperatureModules();
+  Serial.println("Modules setupes were finished.");
 }
 
 
@@ -600,7 +678,24 @@ void showNumber(int64_t num, int8_t mode){
     digitalWrite(distanceInd, LOW);
     digitalWrite(timeInd, HIGH);
     break;
-  case 3:
+  case 4:
+    if (num > 0){
+      PCF0.write(0, HIGH); // 1
+      PCF0.write(1, LOW); // 2
+      PCF0.write(2, LOW); // 4
+      PCF0.write(3, LOW); // 8
+    } else {
+      PCF0.write(0, LOW); // 1
+      PCF0.write(1, HIGH); // 2
+      PCF0.write(2, LOW); // 4
+      PCF0.write(3, LOW); // 8
+      // while function works only with num > 0
+      num = -num;
+    }
+    digitalWrite(distanceInd, HIGH);
+    digitalWrite(timeInd, LOW);
+    break;
+  default:
     PCF0.write(0, LOW); // 1
     PCF0.write(1, LOW); // 2
     PCF0.write(2, LOW); // 4
@@ -659,6 +754,13 @@ void loop() {
   // so time increases not only after delay
   currTime = RTC.now().unixtime();
 
+  SENSORS.requestTemperatures();
+  // Save only int part and 3 digits after dot as integer for correct displaying
+  temperature = SENSORS.getTempC(DSAddress) * 1000;
+  if (temperature > 50000){
+    indicatorsModeNumber = 4;
+  }
+
   switch (indicatorsModeNumber)
   {
   case 0:
@@ -684,6 +786,9 @@ void loop() {
     // currTime % 60 % 60 and currTime % 3600 have different results
     // (((currTime / 3600) % 24) +2) and ((currTime / 3600) % 24 +2) have different results
     numberToShow = ((currTime / 3600) % 24) * 10000 + ((currTime / 60) % 60) * 100 + currTime % 60 % 60;
+    break;
+  case 4:
+    numberToShow = temperature;
     break;
   }
 
@@ -733,10 +838,8 @@ void loop() {
   {
   case 0:
     delay(500);
-    break; 
-  case 1:
-  case 2:
-  case 3:
+    break;
+  default:
     delay(1000);
     break;
   }

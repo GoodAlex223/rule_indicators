@@ -4,6 +4,8 @@
 
 - Fixed incorrect time for RTC. Incorrect time was a result of adjusting RTC with time of compiling of code. This is need to be done only once. https://forum.arduino.cc/t/why-my-rtc-module-is-not-keeping-time/1000098 
 - Added different delays for different modes. To decrease load on arduino. Delay in 500 ms for distance mode and 1000ms for other modes
+- Added a module and mode that shows temperature. In any mode, the temperature should be read and checked. If the temperature is greater than 50 degrees Celsius, then it should pop up instead of all modes whenever.
+  - If the temperature is greater than 50 degrees Celsius, then you cannot switch modes until the temperature drops
 
 ## 10.02.24
 
