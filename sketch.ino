@@ -728,7 +728,18 @@ void loop() {
   //   enablePCINT(digitalPinToPCINT(modeButton));
   // }
   // butt = 0;
-  delay(60);
+  // delay value must be not greater then 1000ms(1 sec) for fast work
+  switch (indicatorsModeNumber)
+  {
+  case 0:
+    delay(500);
+    break; 
+  case 1:
+  case 2:
+  case 3:
+    delay(1000);
+    break;
+  }
 }
 // TODO:
 // - Load AT24CX library from https://github.com/cyberp/AT24Cx/tree/master and replace "AT24CX.h" with <AT24CX.h>

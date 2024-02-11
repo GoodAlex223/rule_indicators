@@ -3,6 +3,7 @@
 ## 11.02.24
 
 - Fixed incorrect time for RTC. Incorrect time was a result of adjusting RTC with time of compiling of code. This is need to be done only once. https://forum.arduino.cc/t/why-my-rtc-module-is-not-keeping-time/1000098 
+- Added different delays for different modes. To decrease load on arduino. Delay in 500 ms for distance mode and 1000ms for other modes
 
 ## 10.02.24
 
