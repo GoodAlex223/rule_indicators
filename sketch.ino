@@ -73,6 +73,7 @@ const int8_t maxIndicatorsModeNumber = 5;
 // In sec
 volatile uint32_t currTime = 0;
 volatile uint32_t prevModeButtonInterTime = 0;
+// volatile bool isModeChanged;
 
 // max motorSeconds and spindelMotorSeconds will be about 359999999 sec 
 // ("99999.59" hours to show; only for 7 lamps)
@@ -361,11 +362,15 @@ void buttonEnc2(){
 
 void changeMode(){
   // 1 sec delay to avoid button rattle
+  // if (isModeChanged == false){
+  //   // change mode value to next: 0 -> ... -> maxIndicatorsModeNumber - 1 -> 0 -> ...
+  //   indicatorsModeNumber = (indicatorsModeNumber + 1) % maxIndicatorsModeNumber;
+  //   isModeChanged = true;
+  // }
   if (currTime - prevModeButtonInterTime >= 1){
-    prevModeButtonInterTime = currTime;
-    // disablePCINT(digitalPinToPCINT(modeButton));
-    // change mode value to next: 0 -> 1 -> 0 -> 1...
+    // change mode value to next: 0 -> ... -> maxIndicatorsModeNumber - 1 -> 0 -> ...
     indicatorsModeNumber = (indicatorsModeNumber + 1) % maxIndicatorsModeNumber;
+    prevModeButtonInterTime = currTime;
   }
 }
 
@@ -505,6 +510,7 @@ void setupRTCModule(){
 
   Serial.println("RTC setupes were finished.");
 }
+
 
 void setupPCFsExpanders(){
   Serial.println("PCFs setupes started.");
@@ -847,6 +853,7 @@ void loop() {
     delay(1000);
     break;
   }
+  // isModeChanged = false;
 }
 // TODO:
 // - Load AT24CX library from https://github.com/cyberp/AT24Cx/tree/master and replace "AT24CX.h" with <AT24CX.h>

@@ -3,6 +3,7 @@
 ## 13.02.24
 
 - Decreased bytes amount for global variables prevDistanceIncStep, prevMotorIncStep, prevSpindelIncStep(from int64_t to int8_t) to decrease using of dynamic memory of arduino. They were incorrect at start. By my calculations, reducing dynamic memory usage from 1622 bytes to 1454 bytes.
+- Added commented code that can be used to decrease dynamic memory usage from 64 to 1 byte, but this code depends on the delay of loop function and can be unstable
 
 ## 11.02.24
 
