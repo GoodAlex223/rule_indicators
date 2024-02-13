@@ -1,11 +1,16 @@
 # Changes
 
+## 13.02.24
+
+- Decreased bytes amount for global variables prevDistanceIncStep, prevMotorIncStep, prevSpindelIncStep(from int64_t to int8_t) to decrease using of dynamic memory of arduino. They were incorrect at start. By my calculations, reducing dynamic memory usage from 1622 bytes to 1454 bytes.
+
 ## 11.02.24
 
 - Fixed incorrect time for RTC. Incorrect time was a result of adjusting RTC with time of compiling of code. This is need to be done only once. https://forum.arduino.cc/t/why-my-rtc-module-is-not-keeping-time/1000098 
 - Added different delays for different modes. To decrease load on arduino. Delay in 500 ms for distance mode and 1000ms for other modes
-- Added a module and mode that shows temperature. In any mode, the temperature should be read and checked. If the temperature is greater than 50 degrees Celsius, then it should pop up instead of all modes whenever.
+- Added a module and mode that shows temperature. In any mode, the temperature should be read and checked. If the temperature is greater than 50 degrees Celsius, then it should showed instead of all modes whenever.
   - If the temperature is greater than 50 degrees Celsius, then you cannot switch modes until the temperature drops
+  - Used https://randomnerdtutorials.com/guide-for-ds18b20-temperature-sensor-with-arduino/ guide and `<OneWire.h>` `<DallasTemperature.h>` libs
 
 ## 10.02.24
 

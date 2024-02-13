@@ -44,6 +44,10 @@
 // max numbers(in 32x systems) long 2^31 - 1 = 2147483647
 // max numbers(in 64x systems) long 2^63 - 1 = 9223372036854775807
 const int8_t STEP = 1;
+volatile int8_t prevDistanceIncStep; // save previous step to detect when increase the streak
+volatile int8_t prevMotorIncStep;
+volatile int8_t prevSpindelIncStep;
+
 volatile bool StateA_enc1, StateB_enc1;
 volatile bool StateA_enc2, StateB_enc2;
 
@@ -53,7 +57,6 @@ volatile int64_t distance = 0;
 // int8_t is enought for distanceIncStreak. If it turns negative it will add only 1
 // volatile int8_t distanceIncStreak = 0; // used for step increasing during several consecutive scrolls of the second encoder
 volatile int8_t distanceIncStreak = 0; // used for step increasing during several consecutive scrolls of the second encoder
-volatile int64_t prevDistanceIncStep; // save previous step to detect when increase the streak
 
 int8_t decoder_i;
 // To store temp values of either distance or work times
@@ -64,7 +67,7 @@ int64_t numberToShow;
 volatile int8_t indicatorsModeNumber = 0;  // int8_t: max values are -128 and 127
 // Loop from one state to another:
 // indicatorsModeNumber = indicatorsModeNumber + 1 % maxIndicatorsModeNumber
-// 0 -> 1 -> 2 -> ... -> maxIndicatorsModeNumber-1 -> 0 -> 1 -> ...
+// 0 -> 1 -> 2 -> ... -> 0 -> 1 -> ...
 const int8_t maxIndicatorsModeNumber = 5;
 
 // In sec
@@ -80,7 +83,6 @@ volatile bool toIncreaseMotorSeconds = false;
 volatile uint32_t motorPrevTime;
 //
 volatile uint8_t motorIncStreak = 0;
-volatile int64_t prevMotorIncStep;
 
 // In sec
 uint32_t spindelMotorSeconds;
@@ -89,7 +91,6 @@ volatile bool toIncreaseSpindelMotorSeconds = false;
 volatile uint32_t spindelPrevTime;
 //
 volatile uint8_t spindelIncStreak = 0;
-volatile int64_t prevSpindelIncStep;
 
 //
 int32_t temperature;
@@ -214,7 +215,7 @@ void changeIncStreak(uint8_t mode, int8_t step){
 }
 
 
-void changeValue(uint8_t mode, int64_t step){
+void changeValue(uint8_t mode){
   switch (mode){
   case 0:
     // Changing distance with new increase step values. 
@@ -234,6 +235,7 @@ void changeValue(uint8_t mode, int64_t step){
     } else {
       // Multilying more then 1000000 require int64_t or long or even more 
       // for prevDistanceIncStep and distance
+      // DO NOT PASS increaseStep above increaseStep_type_int_limit - 9999999(for 7 lamps) 
       safeDistanceIncrease(prevDistanceIncStep * 1000000);
     }
     break;
@@ -256,6 +258,7 @@ void changeValue(uint8_t mode, int64_t step){
     } else if (60 > motorIncStreak){
       motorSeconds = increaseHours(motorSeconds, prevMotorIncStep * 100000);
     } else {
+      // DO NOT PASS increaseStep above increaseStep_type_int_limit - 359999999(for 7 lamps) 
       motorSeconds = increaseHours(motorSeconds, prevMotorIncStep * 1000000);
     }
     break;
@@ -278,6 +281,7 @@ void changeValue(uint8_t mode, int64_t step){
     } else if (60 > spindelIncStreak){
       spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep * 100000);
     } else {
+      // DO NOT PASS increaseStep above increaseStep_type_int_limit - 359999999(for 7 lamps) 
       spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep * 1000000);
     }
     break;
@@ -287,7 +291,7 @@ void changeValue(uint8_t mode, int64_t step){
 
 void changeValuesToShow(int8_t step, uint8_t mode){
   changeIncStreak(mode, step);
-  changeValue(mode, step);
+  changeValue(mode);
 }
 
 
@@ -358,10 +362,10 @@ void buttonEnc2(){
 void changeMode(){
   // 1 sec delay to avoid button rattle
   if (currTime - prevModeButtonInterTime >= 1){
+    prevModeButtonInterTime = currTime;
     // disablePCINT(digitalPinToPCINT(modeButton));
     // change mode value to next: 0 -> 1 -> 0 -> 1...
     indicatorsModeNumber = (indicatorsModeNumber + 1) % maxIndicatorsModeNumber;
-    prevModeButtonInterTime = currTime;
   }
 }
 
