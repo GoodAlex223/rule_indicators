@@ -193,25 +193,25 @@ void changeIncStreak(uint8_t mode, int8_t step){
     prevDistanceIncStep = step;
     break;
 
-  case 1:
-    if (prevMotorIncStep == step){
-      // set limit for increase streak
-      motorIncStreak = min(motorIncStreak + 1, 70);
-    } else {
-      motorIncStreak = 0;
-    }
-    prevMotorIncStep = step;
-    break;
+  // case 1:
+  //   if (prevMotorIncStep == step){
+  //     // set limit for increase streak
+  //     motorIncStreak = min(motorIncStreak + 1, 70);
+  //   } else {
+  //     motorIncStreak = 0;
+  //   }
+  //   prevMotorIncStep = step;
+  //   break;
 
-  case 2:
-    if (prevSpindelIncStep == step){
-      // set limit for increase streak
-      spindelIncStreak = min(spindelIncStreak + 1, 70);
-    } else {
-      spindelIncStreak = 0;
-    }
-    prevSpindelIncStep = step;
-    break;
+  // case 2:
+  //   if (prevSpindelIncStep == step){
+  //     // set limit for increase streak
+  //     spindelIncStreak = min(spindelIncStreak + 1, 70);
+  //   } else {
+  //     spindelIncStreak = 0;
+  //   }
+  //   prevSpindelIncStep = step;
+  //   break;
   }
 }
 
@@ -241,51 +241,51 @@ void changeValue(uint8_t mode){
     }
     break;
 
-  case 1:
-    // Changing distance with new increase step values. 
-    // All limits in states and multiplying of step are random numbers and can be adjusted
-    // 10, 20, 30 are random nums
-    // max increaseStepSeconds is 2^31 - 1 = +-2147483647
-    if (10 > motorIncStreak){
-      motorSeconds = increaseHours(motorSeconds, prevMotorIncStep);
-    } else if (20 > motorIncStreak){
-      motorSeconds = increaseHours(motorSeconds, prevMotorIncStep * 10);
-    } else if (30 > motorIncStreak){
-      motorSeconds = increaseHours(motorSeconds, prevMotorIncStep * 100);
-    } else if (40 > motorIncStreak){
-      motorSeconds = increaseHours(motorSeconds, prevMotorIncStep * 1000);
-    } else if (50 > motorIncStreak){
-      motorSeconds = increaseHours(motorSeconds, prevMotorIncStep * 10000);
-    } else if (60 > motorIncStreak){
-      motorSeconds = increaseHours(motorSeconds, prevMotorIncStep * 100000);
-    } else {
-      // DO NOT PASS increaseStep above increaseStep_type_int_limit - 359999999(for 7 lamps) 
-      motorSeconds = increaseHours(motorSeconds, prevMotorIncStep * 1000000);
-    }
-    break;
+  // case 1:
+  //   // Changing distance with new increase step values. 
+  //   // All limits in states and multiplying of step are random numbers and can be adjusted
+  //   // 10, 20, 30 are random nums
+  //   // max increaseStepSeconds is 2^31 - 1 = +-2147483647
+  //   if (10 > motorIncStreak){
+  //     motorSeconds = increaseHours(motorSeconds, prevMotorIncStep);
+  //   } else if (20 > motorIncStreak){
+  //     motorSeconds = increaseHours(motorSeconds, prevMotorIncStep * 10);
+  //   } else if (30 > motorIncStreak){
+  //     motorSeconds = increaseHours(motorSeconds, prevMotorIncStep * 100);
+  //   } else if (40 > motorIncStreak){
+  //     motorSeconds = increaseHours(motorSeconds, prevMotorIncStep * 1000);
+  //   } else if (50 > motorIncStreak){
+  //     motorSeconds = increaseHours(motorSeconds, prevMotorIncStep * 10000);
+  //   } else if (60 > motorIncStreak){
+  //     motorSeconds = increaseHours(motorSeconds, prevMotorIncStep * 100000);
+  //   } else {
+  //     // DO NOT PASS increaseStep above increaseStep_type_int_limit - 359999999(for 7 lamps) 
+  //     motorSeconds = increaseHours(motorSeconds, prevMotorIncStep * 1000000);
+  //   }
+  //   break;
 
-  case 2:
-    // Changing distance with new increase step values.
-    // All limits in states and multiplying of step are random numbers and can be adjusted
-    // 10, 20, 30 are random nums
-    // max increaseStepSeconds is 2^31 - 1 = +-2147483647
-    if (10 > spindelIncStreak){
-      spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep);
-    } else if (20 > spindelIncStreak){
-      spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep * 10);
-    } else if (30 > spindelIncStreak){
-      spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep * 100);
-    } else if (40 > spindelIncStreak){
-      spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep * 1000);
-    } else if (50 > spindelIncStreak){
-      spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep * 10000);
-    } else if (60 > spindelIncStreak){
-      spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep * 100000);
-    } else {
-      // DO NOT PASS increaseStep above increaseStep_type_int_limit - 359999999(for 7 lamps) 
-      spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep * 1000000);
-    }
-    break;
+  // case 2:
+  //   // Changing distance with new increase step values.
+  //   // All limits in states and multiplying of step are random numbers and can be adjusted
+  //   // 10, 20, 30 are random nums
+  //   // max increaseStepSeconds is 2^31 - 1 = +-2147483647
+  //   if (10 > spindelIncStreak){
+  //     spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep);
+  //   } else if (20 > spindelIncStreak){
+  //     spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep * 10);
+  //   } else if (30 > spindelIncStreak){
+  //     spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep * 100);
+  //   } else if (40 > spindelIncStreak){
+  //     spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep * 1000);
+  //   } else if (50 > spindelIncStreak){
+  //     spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep * 10000);
+  //   } else if (60 > spindelIncStreak){
+  //     spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep * 100000);
+  //   } else {
+  //     // DO NOT PASS increaseStep above increaseStep_type_int_limit - 359999999(for 7 lamps) 
+  //     spindelMotorSeconds = increaseHours(spindelMotorSeconds, prevSpindelIncStep * 1000000);
+  //   }
+  //   break;
   }
 }
 
@@ -313,14 +313,14 @@ void interruptChannelA_enc2() {
       // increaseDistance_enc2(-STEP);
     }
     break;
-  case 1:
-  case 2:
-    if (StateA_enc2 != StateB_enc2){
-      changeValuesToShow(1, indicatorsModeNumber);
-    } else {
-      changeValuesToShow(-1, indicatorsModeNumber);
-    }
-    break;
+  // case 1:
+  // case 2:
+  //   if (StateA_enc2 != StateB_enc2){
+  //     changeValuesToShow(1, indicatorsModeNumber);
+  //   } else {
+  //     changeValuesToShow(-1, indicatorsModeNumber);
+  //   }
+  //   break;
   }
 }
 
@@ -342,14 +342,14 @@ void interruptChannelB_enc2() {
       // increaseDistance_enc2(-STEP);
     }
     break;
-  case 1:
-  case 2:
-    if (StateA_enc2 == StateB_enc2){
-      changeValuesToShow(1, indicatorsModeNumber);
-    } else {
-      changeValuesToShow(-1, indicatorsModeNumber);
-    }
-    break;
+  // case 1:
+  // case 2:
+  //   if (StateA_enc2 == StateB_enc2){
+  //     changeValuesToShow(1, indicatorsModeNumber);
+  //   } else {
+  //     changeValuesToShow(-1, indicatorsModeNumber);
+  //   }
+  //   break;
   }
 }
 
@@ -766,8 +766,8 @@ void loop() {
 
   SENSORS.requestTemperatures();
   // Save only int part and 3 digits after dot as integer for correct displaying
-  temperature = SENSORS.getTempC(DSAddress) * 1000;
-  if (temperature > 50000){
+  temperature = (SENSORS.getTempC(DSAddress) * 100) / 1;
+  if (temperature > 5000){
     indicatorsModeNumber = 4;
   }
 
@@ -818,6 +818,8 @@ void loop() {
   Serial.print(toIncreaseSpindelMotorSeconds);
   Serial.print(" - spindel(sec):");
   Serial.print(spindelMotorSeconds);
+  Serial.print(" - temp(C):");
+  Serial.print(temperature);
 
   // currTime and *PrevTime are seconds
   // 60 is seconds
