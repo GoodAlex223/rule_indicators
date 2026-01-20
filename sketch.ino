@@ -10,23 +10,32 @@
 #include <DallasTemperature.h>
 
 
-
+// Ruler encoder
 #define pinA_enc1 3
 #define pinB_enc1 2
 
+// Support encoder with button for configuring
 #define pinA_enc2 5
 #define pinB_enc2 4
 #define pinReset_enc2 6
 
+// Support indicators at the end of main Indicators. 7 is nnnnnn.nn, 8 - nnnnn.nnn
 #define timeInd 7
 #define distanceInd 8
 
+// Button to change mode of Indicators showing. 
+// 0 mode - mm, distance that ruler has passed
+// 1 mode - sec, from start signal received
+// 2 mode - sec, from spindle start signal received
+// 3 mode - sec, current time
+// 4 mode - Celsius, current temperature
 #define modeButton 9
 
+// Signals that passed to Arduino when start and spindle start
 #define generalStartSignal 10
 #define spindelStartSignal 11
 
-// Data wire is plugged into port 12 on the Arduino
+// Data wire is plugged into port 12 on the Arduino. For temperature connection
 #define ONE_WIRE_BUS 12
 
 
@@ -43,28 +52,33 @@
 // 
 // max numbers(in 32x systems) long 2^31 - 1 = 2147483647
 // max numbers(in 64x systems) long 2^63 - 1 = 9223372036854775807
+// Step that is added to passed ruler distance
 const int8_t STEP = 1;
-volatile int8_t prevDistanceIncStep; // save previous step to detect when increase the streak
+// save previous step to detect when increase the streak
+volatile int8_t prevDistanceIncStep;
 volatile int8_t prevMotorIncStep;
 volatile int8_t prevSpindelIncStep;
 
+// Ruler states that changes after ruler move
 volatile bool StateA_enc1, StateB_enc1;
 volatile bool StateA_enc2, StateB_enc2;
 
 // The distance covered by the ruler
 // at startup 0
 volatile int64_t distance = 0;
-// int8_t is enought for distanceIncStreak. If it turns negative it will add only 1
-// volatile int8_t distanceIncStreak = 0; // used for step increasing during several consecutive scrolls of the second encoder
-volatile int8_t distanceIncStreak = 0; // used for step increasing during several consecutive scrolls of the second encoder
+// int8_t is enough for distanceIncStreak. If it turns negative it will add only 1
+// used for step increasing during several consecutive scrolls of the second encoder
+volatile int8_t distanceIncStreak = 0;
 
+// int8_t: max values are -128 and 127
 int8_t decoder_i;
 // To store temp values of either distance or work times
 // Used int64_t type to include int32_t and below and uint32_t and below
 int64_t numberToShow;
 
 // Store current indicators mode
-volatile int8_t indicatorsModeNumber = 0;  // int8_t: max values are -128 and 127
+// int8_t: max values are -128 and 127
+volatile int8_t indicatorsModeNumber = 0;
 // Loop from one state to another:
 // indicatorsModeNumber = indicatorsModeNumber + 1 % maxIndicatorsModeNumber
 // 0 -> 1 -> 2 -> ... -> 0 -> 1 -> ...
@@ -656,6 +670,7 @@ void showNumber(int64_t num, int8_t mode){
   switch (mode)
   {
   case 0:
+    // + and - for distance
     if (num > 0){
       PCF0.write(0, HIGH); // 1
       PCF0.write(1, LOW); // 2
@@ -669,6 +684,7 @@ void showNumber(int64_t num, int8_t mode){
       // while function works only with num > 0
       num = -num;
     }
+    // dot indicator for distance
     digitalWrite(distanceInd, HIGH);
     digitalWrite(timeInd, LOW);
     break;
@@ -768,14 +784,17 @@ void loop() {
   // Save only int part and 3 digits after dot as integer for correct displaying
   temperature = (SENSORS.getTempC(DSAddress) * 100) / 1;
   if (temperature > 5000){
+    // 4 mode - current temperature
     indicatorsModeNumber = 4;
   }
 
   switch (indicatorsModeNumber)
   {
+  // 0 mode - distance that ruler has passed
   case 0:
     numberToShow = distance;
     break;
+  // 1 mode - seconds from start start signal received
   case 1:
     // In C/C++, when you divide two integers, the result is also an integer. 
     // This means that the fractional part is discarded, and only the integer part is kept. 
@@ -785,9 +804,11 @@ void loop() {
     // minutes % 60 is not full hour(minutes remainder)
     numberToShow = (motorSeconds / 3600) * 100 + (motorSeconds / 60) % 60;
     break;
+  // 2 mode - seconds from spindel start signal received
   case 2:
     numberToShow = (spindelMotorSeconds / 3600) * 100 + (spindelMotorSeconds / 60) % 60;
     break;
+  // 3 mode - current time
   case 3:
     // hours|minutes|seconds -> 11|23|45 -> 112345
     // currTime / 60 / 60 % 24 - rest of hours
@@ -797,6 +818,7 @@ void loop() {
     // (((currTime / 3600) % 24) +2) and ((currTime / 3600) % 24 +2) have different results
     numberToShow = ((currTime / 3600) % 24) * 10000 + ((currTime / 60) % 60) * 100 + currTime % 60 % 60;
     break;
+  // 4 mode - current temperature
   case 4:
     numberToShow = temperature;
     break;
